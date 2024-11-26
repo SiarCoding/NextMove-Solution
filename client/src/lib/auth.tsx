@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { useLocation } from "wouter";
 import type { User } from "@db/schema";
 
 interface AuthContextType {
@@ -6,6 +7,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -13,6 +15,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: async () => {},
   isLoading: true,
+  isAdmin: false,
 });
 
 interface AuthProviderProps {
@@ -22,6 +25,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     // Check session on mount
@@ -53,13 +57,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
+    navigate("/");
   };
 
+  const isAdmin = user?.role === "admin";
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/");
+    }
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return <div>Lade...</div>;
+  }
+
+  return user ? <>{children}</> : null;
+}
+
+export function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user, isLoading, isAdmin } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && (!user || !isAdmin)) {
+      navigate("/admin/login");
+    }
+  }, [user, isAdmin, isLoading, navigate]);
+
+  if (isLoading) {
+    return <div>Lade...</div>;
+  }
+
+  return user && isAdmin ? <>{children}</> : null;
 }
 
 export const useAuth = () => useContext(AuthContext);
