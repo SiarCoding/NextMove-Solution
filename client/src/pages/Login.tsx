@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../lib/auth.tsx";
-import { Shield, Globe, ArrowRight } from "lucide-react";
+import { Shield, Globe } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -55,7 +55,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32]">
       {/* Left side */}
-      <div className="hidden lg:flex lg:flex-1 flex-col px-16 py-16">
+      <div className="flex-1 flex flex-col px-16 py-16">
         <div className="flex items-center space-x-3 mb-20">
           <div className="p-2 bg-primary/10 rounded-lg">
             <Shield className="h-6 w-6 text-primary" />
@@ -66,7 +66,7 @@ export default function Login() {
         </div>
 
         <div className="mb-20">
-          <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight whitespace-nowrap">
+          <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">
             Willkommen zum Kundenportal
           </h1>
           <p className="text-lg text-muted-foreground">
@@ -75,24 +75,28 @@ export default function Login() {
         </div>
 
         <div className="space-y-6">
-          <div className="flex items-center space-x-5 bg-card/50 p-5 rounded-xl border border-border hover:bg-card/70 transition-all duration-300">
+          <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
             <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
               <Shield className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="text-base font-medium text-foreground mb-1">Sicherer Zugang</h3>
+              <h3 className="text-base font-medium text-foreground mb-1">
+                Sicherer Zugang
+              </h3>
               <p className="text-sm text-muted-foreground">
                 Ihre Daten sind bei uns sicher
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-5 bg-card/50 p-5 rounded-xl border border-border hover:bg-card/70 transition-all duration-300">
+          <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
             <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
               <Globe className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="text-base font-medium text-foreground mb-1">24/7 Verfügbar</h3>
+              <h3 className="text-base font-medium text-foreground mb-1">
+                24/7 Verfügbar
+              </h3>
               <p className="text-sm text-muted-foreground">
                 Zugriff rund um die Uhr
               </p>
@@ -102,20 +106,9 @@ export default function Login() {
       </div>
 
       {/* Right side - Login Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 lg:px-12">
+      <div className="flex-1 flex flex-col justify-center px-12">
         <div className="w-full max-w-md mx-auto">
-          <div className="lg:hidden text-center space-y-2 mb-8">
-            <div className="flex items-center justify-center space-x-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <span className="text-primary text-2xl font-bold tracking-tight">
-                NextMove Solution
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-xl p-8 shadow-2xl border border-border">
+          <div className="bg-[#25262b] rounded-xl p-8 shadow-2xl border border-border">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -125,7 +118,11 @@ export default function Login() {
                     <FormItem>
                       <FormLabel>E-Mail</FormLabel>
                       <FormControl>
-                        <Input placeholder="name@firma.de" {...field} />
+                        <Input 
+                          placeholder="name@firma.de" 
+                          className="bg-[#1a1b1e] border-border" 
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -139,7 +136,11 @@ export default function Login() {
                     <FormItem>
                       <FormLabel>Passwort</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <Input 
+                          type="password" 
+                          className="bg-[#1a1b1e] border-border"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -148,21 +149,29 @@ export default function Login() {
 
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-primary hover:bg-primary/90"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Anmelden..." : "Anmelden"}
+                  {isLoading ? "Wird geladen..." : "Anmelden"}
                 </Button>
 
                 <div className="space-y-4 text-center">
                   <Button
                     variant="link"
-                    onClick={() => navigate("/register")}
                     className="text-muted-foreground hover:text-primary"
+                    onClick={() => navigate("/forgot-password")}
                   >
-                    Noch kein Konto? Jetzt registrieren
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    Passwort vergessen?
                   </Button>
+                  <div>
+                    <Button
+                      variant="link"
+                      onClick={() => navigate("/register")}
+                      className="text-muted-foreground hover:text-primary"
+                    >
+                      Noch kein Konto? Jetzt registrieren
+                    </Button>
+                  </div>
                   <div>
                     <Button
                       variant="ghost"
