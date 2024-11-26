@@ -37,12 +37,13 @@ export function registerRoutes(app: Express) {
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: "lax",
       path: "/"
     }
   }));
+
   // Auth Routes
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
@@ -59,8 +60,21 @@ export function registerRoutes(app: Express) {
       return res.status(403).json({ error: "Account wartet auf Freigabe" });
     }
 
-    req.session!.userId = user.id;
+    req.session.userId = user.id;
     await new Promise<void>((resolve) => req.session!.save(() => resolve()));
+
+    res.json({ user: { ...user, password: undefined } });
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Fehler beim Abmelden" });
+      }
+      res.json({ message: "Erfolgreich abgemeldet" });
+    });
+  });
+
   app.get("/api/auth/session", async (req, res) => {
     if (!req.session?.userId) {
       return res.status(401).json({ error: "Nicht authentifiziert" });
@@ -73,9 +87,6 @@ export function registerRoutes(app: Express) {
     if (!user) {
       return res.status(401).json({ error: "Benutzer nicht gefunden" });
     }
-
-    res.json({ user: { ...user, password: undefined } });
-  });
 
     res.json({ user: { ...user, password: undefined } });
   });
@@ -101,7 +112,7 @@ export function registerRoutes(app: Express) {
     res.json({ message: "Registrierung erfolgreich" });
   });
 
-  // Admin Routes - protected by requireAdmin middleware
+  // Admin Routes
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     const [pendingApprovals, activeUsers, totalTutorials] = await Promise.all([
       db.query.users.findMany({
@@ -122,7 +133,7 @@ export function registerRoutes(app: Express) {
     res.json({ pendingApprovals, activeUsers, totalTutorials });
   });
 
-  // User Routes - protected by requireAdmin middleware
+  // User Routes
   app.get("/api/users/pending", requireAdmin, async (req, res) => {
     const pendingUsers = await db.query.users.findMany({
       where: and(
@@ -133,7 +144,7 @@ export function registerRoutes(app: Express) {
     res.json(pendingUsers);
   });
 
-  app.post("/api/users/:id/approve", async (req, res) => {
+  app.post("/api/users/:id/approve", requireAdmin, async (req, res) => {
     const { id } = req.params;
     await db.update(users)
       .set({ isApproved: true })
@@ -142,7 +153,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Tutorial Routes
-  app.post("/api/tutorials", async (req, res) => {
+  app.post("/api/tutorials", requireAdmin, async (req, res) => {
     const newTutorial = await db.insert(tutorials).values(req.body).returning();
     res.json(newTutorial[0]);
   });
