@@ -35,7 +35,12 @@ export function registerRoutes(app: Express) {
     secret: "your-secret-key",
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === "production" }
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      httpOnly: true,
+      sameSite: "lax"
+    }
   }));
   // Auth Routes
   app.post("/api/auth/login", async (req, res) => {
@@ -54,6 +59,7 @@ export function registerRoutes(app: Express) {
     }
 
     req.session!.userId = user.id;
+    await new Promise<void>((resolve) => req.session!.save(() => resolve()));
     res.json({ user: { ...user, password: undefined } });
   });
 
