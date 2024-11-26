@@ -28,9 +28,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    let hasRetried = false;
-    const retryDelay = 1000;
-
     const checkSession = async () => {
       try {
         const res = await fetch("/api/auth/session");
@@ -43,20 +40,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(data.user);
           localStorage.setItem("cachedUser", JSON.stringify(data.user));
         } else {
-          // Clear cached data if no user in session
           localStorage.removeItem("cachedUser");
           setUser(null);
         }
       } catch (error) {
         console.error("Session check failed:", error);
         
-        if (!hasRetried) {
-          hasRetried = true;
-          setTimeout(checkSession, retryDelay);
-          return;
-        }
-        
-        // Try to use cached user data only after retry failed
+        // Try to use cached user data if available
         const cachedUser = localStorage.getItem("cachedUser");
         if (cachedUser) {
           try {
@@ -72,13 +62,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     };
 
-    // Try to use cached user data immediately while checking session
-    const cachedUser = localStorage.getItem("cachedUser");
-    if (cachedUser) {
-      setUser(JSON.parse(cachedUser));
-    }
-
     checkSession();
+
+    // Set up periodic session check
+    const intervalId = setInterval(checkSession, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -89,19 +78,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (!res.ok) {
-      throw new Error("Anmeldung fehlgeschlagen");
+      const data = await res.json();
+      throw new Error(data.error || "Anmeldung fehlgeschlagen");
     }
 
     const data = await res.json();
+    
+    // Wait for session to be saved before proceeding
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 100); // Small delay to ensure session is saved
+    });
+    
     setUser(data.user);
-    // Cache the user data on successful login
     localStorage.setItem("cachedUser", JSON.stringify(data.user));
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    const res = await fetch("/api/auth/logout", { method: "POST" });
+    if (!res.ok) {
+      throw new Error("Abmeldung fehlgeschlagen");
+    }
+    
     setUser(null);
-    // Clear cached user data
     localStorage.removeItem("cachedUser");
     navigate("/");
   };
