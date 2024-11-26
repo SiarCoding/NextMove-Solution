@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Shield, Globe } from "lucide-react";
 
 const registerSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -68,108 +69,176 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-2">
-            Kundenportal Registrierung
+    <div className="min-h-screen flex bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32]">
+      {/* Left side */}
+      <div className="flex-1 flex flex-col px-16 py-16">
+        <div className="flex items-center space-x-3 mb-20">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Shield className="h-6 w-6 text-primary" />
+          </div>
+          <span className="text-primary text-2xl font-bold tracking-tight">
+            NextMove Solution
+          </span>
+        </div>
+
+        <div className="mb-20">
+          <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">
+            Willkommen zum Kundenportal
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-lg text-muted-foreground">
             Erstellen Sie einen neuen Account
           </p>
         </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vorname</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Max" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nachname</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Mustermann" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <div className="space-y-6">
+          <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
+            <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
+              <Shield className="h-6 w-6 text-primary" />
             </div>
+            <div>
+              <h3 className="text-base font-medium text-foreground mb-1">
+                Sicherer Zugang
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Ihre Daten sind bei uns sicher
+              </p>
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
-              name="companyName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Firmenname</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Musterfirma GmbH" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
+            <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
+              <Globe className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-base font-medium text-foreground mb-1">
+                24/7 Verfügbar
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Zugriff rund um die Uhr
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-Mail</FormLabel>
-                  <FormControl>
-                    <Input placeholder="name@firma.de" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      {/* Right side - Registration Form */}
+      <div className="flex-1 flex flex-col justify-center px-12">
+        <div className="w-full max-w-md mx-auto">
+          <div className="bg-[#25262b] rounded-xl p-8 shadow-2xl border border-border">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vorname</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Max" 
+                            className="bg-[#1a1b1e] border-border"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Passwort</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nachname</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Mustermann" 
+                            className="bg-[#1a1b1e] border-border"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? "Registriere..." : "Registrieren"}
-            </Button>
-          </form>
-        </Form>
+                <FormField
+                  control={form.control}
+                  name="companyName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Firmenname</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Musterfirma GmbH" 
+                          className="bg-[#1a1b1e] border-border"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-        <div className="text-center">
-          <Button
-            variant="link"
-            onClick={() => navigate("/")}
-          >
-            Zurück zum Login
-          </Button>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-Mail</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="name@firma.de" 
+                          className="bg-[#1a1b1e] border-border"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Passwort</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          className="bg-[#1a1b1e] border-border"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Registriere..." : "Registrieren"}
+                </Button>
+
+                <div className="text-center">
+                  <Button
+                    variant="link"
+                    onClick={() => navigate("/")}
+                    className="text-muted-foreground hover:text-primary"
+                  >
+                    Zurück zum Login
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
         </div>
       </div>
     </div>
