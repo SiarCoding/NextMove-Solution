@@ -104,12 +104,20 @@ export default function Login() {
         </Form>
 
         <div className="text-center space-y-2">
-          <Button
-            variant="link"
-            onClick={() => navigate("/register")}
-          >
-            Noch kein Konto? Jetzt registrieren
-          </Button>
+          <div className="flex flex-col space-y-2">
+            <Button
+              variant="link"
+              onClick={() => navigate("/register")}
+            >
+              Noch kein Konto? Jetzt registrieren
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/admin")}
+            >
+              Zum Adminportal
+            </Button>
+          </div>
         </div>
       </div>
     </div>

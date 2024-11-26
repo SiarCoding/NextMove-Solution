@@ -51,8 +51,9 @@ export default function Register() {
       if (!res.ok) throw new Error();
 
       toast({
-        title: "Registrierung erfolgreich",
-        description: "Ihr Account wartet auf Freigabe durch einen Administrator.",
+        title: "Registrierung erfolgreich!",
+        description: "Warten Sie die Freigabe vom Admin",
+        className: "bg-primary text-primary-foreground",
       });
       navigate("/");
     } catch (error) {
