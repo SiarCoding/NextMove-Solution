@@ -110,6 +110,12 @@ export default function Login() {
           >
             Noch kein Konto? Jetzt registrieren
           </Button>
+          <Button
+            variant="link"
+            onClick={() => navigate("/admin/login")}
+          >
+            Zum Adminportal
+          </Button>
         </div>
       </div>
     </div>
