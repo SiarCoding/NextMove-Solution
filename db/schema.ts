@@ -61,6 +61,12 @@ export const callbacks = pgTable("callbacks", {
   status: text("status").default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+export const adminCustomerRelations = pgTable("admin_customer_relations", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  adminId: integer("admin_id").references(() => users.id).notNull(),
+  customerId: integer("customer_id").references(() => users.id).notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+});
 
 // Zod Schemas
 export const insertUserSchema = createInsertSchema(users);

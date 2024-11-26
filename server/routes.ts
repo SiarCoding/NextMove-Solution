@@ -1,11 +1,42 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { db } from "../db";
 import { users, tutorials, userProgress, metrics, referrals, callbacks } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
+import session from "express-session";
+
+declare module "express-session" {
+  interface SessionData {
+    userId: number;
+  }
+}
+
+// Admin middleware
+async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.userId) {
+    return res.status(401).json({ error: "Nicht authentifiziert" });
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, req.session.userId)
+  });
+
+  if (!user || user.role !== "admin") {
+    return res.status(403).json({ error: "Keine Administratorrechte" });
+  }
+
+  next();
+}
 
 export function registerRoutes(app: Express) {
+  // Configure session middleware
+  app.use(session({
+    secret: "your-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === "production" }
+  }));
   // Auth Routes
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
@@ -47,8 +78,29 @@ export function registerRoutes(app: Express) {
     res.json({ message: "Registrierung erfolgreich" });
   });
 
-  // User Routes
-  app.get("/api/users/pending", async (req, res) => {
+  // Admin Routes - protected by requireAdmin middleware
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    const [pendingApprovals, activeUsers, totalTutorials] = await Promise.all([
+      db.query.users.findMany({
+        where: and(
+          eq(users.role, "customer"),
+          eq(users.isApproved, false)
+        )
+      }).then(users => users.length),
+      db.query.users.findMany({
+        where: and(
+          eq(users.role, "customer"),
+          eq(users.isApproved, true)
+        )
+      }).then(users => users.length),
+      db.query.tutorials.findMany().then(tutorials => tutorials.length)
+    ]);
+
+    res.json({ pendingApprovals, activeUsers, totalTutorials });
+  });
+
+  // User Routes - protected by requireAdmin middleware
+  app.get("/api/users/pending", requireAdmin, async (req, res) => {
     const pendingUsers = await db.query.users.findMany({
       where: and(
         eq(users.role, "customer"),

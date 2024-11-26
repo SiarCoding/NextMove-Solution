@@ -14,14 +14,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "../lib/auth.tsx";
+import { useAuth } from "../../lib/auth.tsx";
 
 const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
   password: z.string().min(1, "Passwort ist erforderlich"),
 });
 
-export default function Login() {
+export default function AdminLogin() {
   const [, navigate] = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
@@ -39,7 +39,7 @@ export default function Login() {
     try {
       setIsLoading(true);
       await login(values.email, values.password);
-      navigate("/dashboard");
+      navigate("/admin");
     } catch (error) {
       toast({
         variant: "destructive",
@@ -59,7 +59,7 @@ export default function Login() {
             NextMove Solution
           </h1>
           <p className="text-muted-foreground">
-            Willkommen zum Kundenportal
+            Administrator Login
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export default function Login() {
                 <FormItem>
                   <FormLabel>E-Mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="name@firma.de" {...field} />
+                    <Input placeholder="admin@nextmove.de" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -103,12 +103,12 @@ export default function Login() {
           </form>
         </Form>
 
-        <div className="text-center space-y-2">
+        <div className="text-center">
           <Button
             variant="link"
-            onClick={() => navigate("/register")}
+            onClick={() => navigate("/")}
           >
-            Noch kein Konto? Jetzt registrieren
+            Zurück zum Kundenportal
           </Button>
         </div>
       </div>
