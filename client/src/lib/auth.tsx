@@ -28,31 +28,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 3;
+    let hasRetried = false;
     const retryDelay = 1000;
 
     const checkSession = async () => {
       try {
         const res = await fetch("/api/auth/session");
-        if (!res.ok) throw new Error("Session check failed");
+        if (!res.ok) {
+          throw new Error(res.statusText);
+        }
         
         const data = await res.json();
         if (data.user) {
           setUser(data.user);
-          // Cache the user data in localStorage
           localStorage.setItem("cachedUser", JSON.stringify(data.user));
+        } else {
+          // Clear cached data if no user in session
+          localStorage.removeItem("cachedUser");
+          setUser(null);
         }
       } catch (error) {
-        if (retryCount < maxRetries) {
-          retryCount++;
+        console.error("Session check failed:", error);
+        
+        if (!hasRetried) {
+          hasRetried = true;
           setTimeout(checkSession, retryDelay);
           return;
         }
-        // If all retries failed, try to use cached user data
+        
+        // Try to use cached user data only after retry failed
         const cachedUser = localStorage.getItem("cachedUser");
         if (cachedUser) {
-          setUser(JSON.parse(cachedUser));
+          try {
+            const userData = JSON.parse(cachedUser);
+            setUser(userData);
+          } catch (e) {
+            console.error("Failed to parse cached user data:", e);
+            localStorage.removeItem("cachedUser");
+          }
         }
       } finally {
         setIsLoading(false);

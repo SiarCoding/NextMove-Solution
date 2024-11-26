@@ -39,7 +39,8 @@ export function registerRoutes(app: Express) {
       secure: process.env.NODE_ENV === "production",
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
-      sameSite: "lax"
+      sameSite: "lax",
+      path: "/"
     }
   }));
   // Auth Routes
@@ -60,6 +61,22 @@ export function registerRoutes(app: Express) {
 
     req.session!.userId = user.id;
     await new Promise<void>((resolve) => req.session!.save(() => resolve()));
+  app.get("/api/auth/session", async (req, res) => {
+    if (!req.session?.userId) {
+      return res.status(401).json({ error: "Nicht authentifiziert" });
+    }
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, req.session.userId)
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: "Benutzer nicht gefunden" });
+    }
+
+    res.json({ user: { ...user, password: undefined } });
+  });
+
     res.json({ user: { ...user, password: undefined } });
   });
 
