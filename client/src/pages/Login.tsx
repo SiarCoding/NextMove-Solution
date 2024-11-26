@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../lib/auth.tsx";
+import { Shield, Globe } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -52,70 +53,121 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-2">
+    <div className="min-h-screen flex bg-background">
+      {/* Left side */}
+      <div className="hidden lg:flex lg:flex-1 flex-col px-16 py-16 bg-card border-r border-border">
+        <div className="flex items-center space-x-3 mb-20">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Shield className="h-6 w-6 text-primary" />
+          </div>
+          <span className="text-primary text-2xl font-bold tracking-tight">
             NextMove Solution
-          </h1>
-          <p className="text-muted-foreground">
+          </span>
+        </div>
+
+        <div className="mb-20">
+          <h1 className="text-4xl font-bold mb-4 leading-tight">
             Willkommen zum Kundenportal
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Melden Sie sich an, um fortzufahren
           </p>
         </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-Mail</FormLabel>
-                  <FormControl>
-                    <Input placeholder="name@firma.de" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div className="space-y-6">
+          <div className="flex items-center space-x-5 bg-background/50 p-5 rounded-xl border border-border hover:bg-background/70 transition-all duration-300">
+            <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-base font-medium mb-1">Sicherer Zugang</h3>
+              <p className="text-sm text-muted-foreground">
+                Ihre Daten sind bei uns sicher
+              </p>
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Passwort</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="flex items-center space-x-5 bg-background/50 p-5 rounded-xl border border-border hover:bg-background/70 transition-all duration-300">
+            <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
+              <Globe className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-base font-medium mb-1">24/7 Verfügbar</h3>
+              <p className="text-sm text-muted-foreground">
+                Zugriff rund um die Uhr
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      {/* Right side - Login Form */}
+      <div className="flex-1 flex flex-col justify-center items-center p-8">
+        <div className="w-full max-w-md space-y-8">
+          <div className="lg:hidden text-center space-y-2 mb-8">
+            <h1 className="text-2xl font-bold">NextMove Solution</h1>
+            <p className="text-muted-foreground">
+              Willkommen zum Kundenportal
+            </p>
+          </div>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-Mail</FormLabel>
+                    <FormControl>
+                      <Input placeholder="name@firma.de" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Passwort</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? "Anmelden..." : "Anmelden"}
+              </Button>
+            </form>
+          </Form>
+
+          <div className="text-center space-y-2">
             <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
+              variant="link"
+              onClick={() => navigate("/register")}
             >
-              {isLoading ? "Anmelden..." : "Anmelden"}
+              Noch kein Konto? Jetzt registrieren
             </Button>
-          </form>
-        </Form>
-
-        <div className="text-center space-y-2">
-          <Button
-            variant="link"
-            onClick={() => navigate("/register")}
-          >
-            Noch kein Konto? Jetzt registrieren
-          </Button>
-          <Button
-            variant="link"
-            onClick={() => navigate("/admin/login")}
-          >
-            Zum Adminportal
-          </Button>
+            <div className="flex justify-center">
+              <Button
+                variant="link"
+                onClick={() => navigate("/admin/login")}
+                className="text-muted-foreground hover:text-primary"
+              >
+                Zum Adminportal
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
