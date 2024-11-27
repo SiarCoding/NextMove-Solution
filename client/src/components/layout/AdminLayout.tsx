@@ -23,28 +23,28 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       icon: <LayoutDashboard className="h-4 w-4" />,
       label: "Dashboard",
-      path: "/admin"
+      path: "/admin",
     },
     {
       icon: <Users className="h-4 w-4" />,
       label: "Kundenliste",
-      path: "/admin/customers"
+      path: "/admin/customers",
     },
     {
       icon: <ActivitySquare className="h-4 w-4" />,
       label: "Kundentracking",
-      path: "/admin/tracking"
+      path: "/admin/tracking",
     },
     {
       icon: <FileVideo className="h-4 w-4" />,
       label: "Content",
-      path: "/admin/content"
+      path: "/admin/content",
     },
     {
       icon: <Settings className="h-4 w-4" />,
       label: "Einstellungen",
-      path: "/admin/settings"
-    }
+      path: "/admin/settings",
+    },
   ];
 
   const { data: settings, error } = useQuery({
@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     queryFn: async () => {
       try {
         const res = await fetch("/api/admin/settings", {
-          credentials: 'include'
+          credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to fetch settings");
         const data = await res.json();
@@ -64,7 +64,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
     },
     gcTime: 0,
-    staleTime: 0
+    staleTime: 0,
   });
 
   return (
@@ -74,7 +74,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Logo & Titel */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
               {settings?.logoUrl ? (
                 <img
                   src={settings.logoUrl}
