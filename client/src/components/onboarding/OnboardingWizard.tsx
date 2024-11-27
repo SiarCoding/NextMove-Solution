@@ -28,7 +28,8 @@ export default function OnboardingWizard() {
 
   const handleComplete = async () => {
     try {
-      // Force window close and navigation
+      setCurrentStep(currentStep + 1);
+      // Force navigation to dashboard
       window.location.href = "/dashboard";
     } catch (error) {
       console.error("Navigation error:", error);
