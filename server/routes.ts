@@ -266,8 +266,9 @@ export function registerRoutes(app: Express) {
       });
 
       const validatedData = schema.parse(req.body);
-      const existingSettings = await db.query.companySettings.findFirst();
       
+      // Update company settings
+      const existingSettings = await db.query.companySettings.findFirst();
       if (existingSettings) {
         await db.update(companySettings)
           .set({
@@ -281,6 +282,13 @@ export function registerRoutes(app: Express) {
           updatedAt: new Date(),
         });
       }
+
+      // Update admin user
+      await db.update(users)
+        .set({ 
+          companyName: validatedData.companyName 
+        })
+        .where(eq(users.email, "admin@nextmove.de"));
 
       res.json({ message: "Einstellungen aktualisiert", success: true });
     } catch (error) {
@@ -382,6 +390,13 @@ export function registerRoutes(app: Express) {
         if (!updatedSettings || updatedSettings.logoUrl !== logoUrl) {
           throw new Error("Logo-URL wurde nicht korrekt in der Datenbank gespeichert");
         }
+
+        // Update admin user's profile image
+        await db.update(users)
+          .set({ 
+            profileImage: logoUrl 
+          })
+          .where(eq(users.email, "admin@nextmove.de"));
 
         res.json({ 
           logoUrl,
