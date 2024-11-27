@@ -74,8 +74,8 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
 
       if (!res.ok) throw new Error("Failed to save checklist");
       
-      // Wait for the backend to process
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for backend to process
+      await new Promise(resolve => setTimeout(resolve, 1000));
       onComplete();
     } catch (error) {
       console.error(error);

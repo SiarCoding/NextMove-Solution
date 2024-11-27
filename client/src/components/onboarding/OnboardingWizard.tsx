@@ -27,10 +27,14 @@ export default function OnboardingWizard() {
   const [, navigate] = useLocation();
 
   const handleComplete = async () => {
-    setCurrentStep(currentStep + 1);
-    // Wait for a moment to show completion
-    await new Promise(resolve => setTimeout(resolve, 500));
-    navigate("/dashboard");
+    try {
+      setCurrentStep(currentStep + 1);
+      // Wait for the backend to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      navigate("/dashboard", { replace: true });
+    } catch (error) {
+      console.error("Navigation error:", error);
+    }
   };
 
   return (
