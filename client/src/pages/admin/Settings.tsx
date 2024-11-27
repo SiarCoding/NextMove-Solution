@@ -37,10 +37,8 @@ export default function Settings() {
       }
       return res.json();
     },
-    retry: 3,
-    retryDelay: 1000,
     gcTime: 0,
-    staleTime: 0,
+    staleTime: 0
   });
 
   const form = useForm<z.infer<typeof companySettingsSchema>>({
@@ -148,21 +146,26 @@ export default function Settings() {
       }
 
       const data = await res.json();
+      
+      // Update local state immediately
       setPreviewUrl(data.logoUrl);
+      
+      // Force refetch of settings and admin profile
       await queryClient.invalidateQueries({ queryKey: ["company-settings"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-user"] });
       await refetch();
-
+      
       setLogoFile(null);
       toast({
         title: "Erfolg",
-        description: "Logo wurde erfolgreich hochgeladen",
+        description: "Logo wurde erfolgreich hochgeladen"
       });
     } catch (error) {
       console.error("Logo upload error:", error);
       toast({
         variant: "destructive",
         title: "Fehler",
-        description: error instanceof Error ? error.message : "Logo konnte nicht hochgeladen werden",
+        description: error instanceof Error ? error.message : "Logo konnte nicht hochgeladen werden"
       });
     } finally {
       setUploading(false);

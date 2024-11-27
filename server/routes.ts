@@ -316,10 +316,16 @@ export function registerRoutes(app: Express) {
       // Store complete URL path
       const logoUrl = `/uploads/${filename}`;
 
-      // Update admin user first to ensure profile_image is set
-      await db.update(users)
-        .set({ profileImage: logoUrl })
-        .where(eq(users.email, "admin@nextmove.de"));
+      // First update admin user
+      const adminUser = await db.query.users.findFirst({
+        where: eq(users.email, "admin@nextmove.de")
+      });
+
+      if (adminUser) {
+        await db.update(users)
+          .set({ profileImage: logoUrl })
+          .where(eq(users.id, adminUser.id));
+      }
 
       // Then update company settings
       const existingSettings = await db.query.companySettings.findFirst();
@@ -331,6 +337,9 @@ export function registerRoutes(app: Express) {
           })
           .where(eq(companySettings.id, existingSettings.id));
       }
+
+      // Ensure data is committed before responding
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Return complete URL in response
       res.json({ 
