@@ -73,10 +73,10 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
       });
 
       if (!res.ok) throw new Error("Failed to save checklist");
-
-      // Wait for backend to process
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // Complete onboarding and force reload
       onComplete();
+      window.location.href = "/dashboard";
     } catch (error) {
       console.error(error);
     } finally {
