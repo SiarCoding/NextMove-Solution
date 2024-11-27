@@ -40,7 +40,18 @@ export default function Login() {
     try {
       setIsLoading(true);
       await login(values.email, values.password, "customer");
-      navigate("/dashboard");
+      
+      // Check onboarding status after login
+      const res = await fetch("/api/auth/session", {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      
+      if (data.user && !data.user.onboardingCompleted) {
+        navigate("/onboarding");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       toast({
         variant: "destructive",

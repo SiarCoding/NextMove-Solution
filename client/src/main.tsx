@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import AdminLogin from "./pages/admin/Login";
+import OnboardingWizard from "./components/onboarding/OnboardingWizard";
 import AdminDashboard from "./pages/admin/Dashboard";
 import UserApproval from "./pages/admin/UserApproval";
 import ContentManagement from "./pages/admin/ContentManagement";
@@ -26,6 +27,11 @@ function Router() {
     <Switch>
       <Route path="/" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/onboarding">
+        <RequireAuth>
+          <OnboardingWizard />
+        </RequireAuth>
+      </Route>
       <Route path="/dashboard">
         <RequireAuth>
           <Dashboard />
