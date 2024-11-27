@@ -31,15 +31,16 @@ export default function Settings() {
       const res = await fetch("/api/admin/settings", {
         credentials: 'include'
       });
-      if (!res.ok) throw new Error("Failed to fetch settings");
-      const data = await res.json();
-      console.log("Settings fetched:", data);
-      return data;
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch settings");
+      }
+      return res.json();
     },
-    staleTime: 0,
-    gcTime: 0,
     retry: 3,
-    retryDelay: 1000
+    retryDelay: 1000,
+    gcTime: 0,
+    staleTime: 0,
   });
 
   const form = useForm<z.infer<typeof companySettingsSchema>>({
@@ -52,12 +53,11 @@ export default function Settings() {
     },
   });
 
-  // Update form when data is loaded
   useEffect(() => {
     if (settingsData) {
       form.reset({
         companyName: settingsData.companyName || "",
-        email: settingsData.email || "",
+        email: settingsData.email || "admin@nextmove.de",
         phone: settingsData.phone || "",
         address: settingsData.address || "",
       });
@@ -73,6 +73,12 @@ export default function Settings() {
         body: JSON.stringify(values),
         credentials: 'include'
       });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Einstellungen konnten nicht gespeichert werden");
+      }
+      
       return res.json();
     },
     onSuccess: () => {
@@ -83,11 +89,36 @@ export default function Settings() {
       });
       setIsEditing(false);
     },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: error.message,
+      });
+    },
   });
 
   const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "Fehler",
+          description: "Die Datei ist zu groß. Maximale Größe ist 10MB.",
+        });
+        return;
+      }
+      
+      if (!["image/jpeg", "image/png", "image/gif"].includes(file.type)) {
+        toast({
+          variant: "destructive",
+          title: "Fehler",
+          description: "Nur JPG, PNG und GIF Dateien sind erlaubt.",
+        });
+        return;
+      }
+
       setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -112,21 +143,16 @@ export default function Settings() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Unbekannter Fehler");
+        const error = await res.json();
+        throw new Error(error.message || "Logo konnte nicht hochgeladen werden");
       }
 
       const data = await res.json();
-      
-      // Update preview URL with the new logo URL
       setPreviewUrl(data.logoUrl);
-      
-      // Invalidate and refetch settings
       await queryClient.invalidateQueries({ queryKey: ["company-settings"] });
       await refetch();
 
       setLogoFile(null);
-      
       toast({
         title: "Erfolg",
         description: "Logo wurde erfolgreich hochgeladen",
@@ -188,6 +214,10 @@ export default function Settings() {
                       src={previewUrl || settingsData?.logoUrl}
                       alt="Logo"
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error("Logo loading error:", e);
+                        e.currentTarget.src = "/fallback-logo.svg";
+                      }}
                     />
                   ) : (
                     <User className="w-12 h-12 text-muted-foreground" />
@@ -202,7 +232,7 @@ export default function Settings() {
                     <input
                       id="logo-upload"
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/gif"
                       onChange={handleLogoChange}
                       className="hidden"
                       disabled={uploading}

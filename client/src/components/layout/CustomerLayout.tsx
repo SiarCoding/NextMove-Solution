@@ -83,21 +83,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
     }
   };
 
-  const { data: settings, error } = useQuery({
-    queryKey: ["company-settings"],
+  const { data: adminUser } = useQuery({
+    queryKey: ["admin-user"],
     queryFn: async () => {
-      try {
-        const res = await fetch("/api/admin/settings", {
-          credentials: 'include'
-        });
-        if (!res.ok) throw new Error("Failed to fetch settings");
-        const data = await res.json();
-        console.log("Customer Layout - Settings fetched:", data);
-        return data;
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-        throw error;
-      }
+      const res = await fetch("/api/admin/profile", {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error("Failed to fetch admin profile");
+      return res.json();
     },
     gcTime: 0,
     staleTime: 0
@@ -110,11 +103,11 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         <div className="w-64 bg-card border-r">
           <div className="p-4 flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
-              {settings?.logoUrl ? (
+              {adminUser?.profileImage ? (
                 <img
-                  src={settings.logoUrl}
+                  src={adminUser.profileImage}
                   alt="Company Logo"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-full"
                   onError={(e) => {
                     console.error("Logo loading error:", e);
                     e.currentTarget.src = "/fallback-logo.svg";
@@ -126,7 +119,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-primary">
-                {settings?.companyName || "Kundenportal"}
+                {adminUser?.companyName || "Kundenportal"}
               </h1>
               <p className="text-sm text-muted-foreground">
                 {user?.companyName}

@@ -312,107 +312,52 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ error: "Keine Datei hochgeladen" });
       }
 
-      // Validate file and generate URL
       const filename = req.file.filename;
-      const absolutePath = path.join(process.cwd(), "uploads", filename);
       const logoUrl = `/uploads/${filename}`;
 
-      console.log("Logo Upload - Processing:", {
-        filename,
-        absolutePath,
-        logoUrl,
-        mimeType: req.file.mimetype,
-        fileSize: req.file.size
-      });
+      // Update admin user first
+      await db.update(users)
+        .set({ profileImage: logoUrl })
+        .where(eq(users.email, "admin@nextmove.de"));
 
-      // Validate file exists and is accessible
-      try {
-        const stats = await fs.stat(absolutePath);
-        console.log("Logo Upload - File stats:", {
-          size: stats.size,
-          permissions: stats.mode,
-          created: stats.birthtime,
-          modified: stats.mtime
-        });
-      } catch (error) {
-        console.error("Logo Upload - File validation error:", error);
-        throw new Error("Uploaded file validation failed");
-      }
-
-      // Verify uploaded file exists
-      try {
-        await fs.access(absolutePath);
-      } catch (error) {
-        console.error("Logo Upload - File access error:", error);
-        throw new Error("Hochgeladene Datei konnte nicht gefunden werden");
-      }
-
-      // Fetch existing settings
+      // Then update company settings
       const existingSettings = await db.query.companySettings.findFirst();
-      console.log("Logo Upload - Existing settings:", existingSettings);
-
-      // Delete old logo if exists
-      if (existingSettings?.logoUrl) {
-        try {
-          const oldLogoPath = path.join(process.cwd(), existingSettings.logoUrl);
-          await fs.access(oldLogoPath);
-          await fs.unlink(oldLogoPath);
-          console.log("Logo Upload - Deleted old logo:", oldLogoPath);
-        } catch (error) {
-          console.error("Logo Upload - Error deleting old logo:", error);
-        }
-      }
-
-      // Update or create settings with transaction
-      try {
-        if (existingSettings) {
-          await db.update(companySettings)
-            .set({
-              logoUrl,
-              updatedAt: new Date(),
-            })
-            .where(eq(companySettings.id, existingSettings.id));
-        } else {
-          await db.insert(companySettings).values({
-            logoUrl,
-            companyName: "",
-            email: "admin@nextmove.de",
-            phone: "",
-            address: "",
-            updatedAt: new Date(),
-          });
-        }
-
-        // Verify settings were updated
-        const updatedSettings = await db.query.companySettings.findFirst();
-        console.log("Logo Upload - Updated settings:", updatedSettings);
-
-        if (!updatedSettings || updatedSettings.logoUrl !== logoUrl) {
-          throw new Error("Logo-URL wurde nicht korrekt in der Datenbank gespeichert");
-        }
-
-        // Update admin user's profile image
-        await db.update(users)
+      if (existingSettings) {
+        await db.update(companySettings)
           .set({ 
-            profileImage: logoUrl 
+            logoUrl,
+            updatedAt: new Date()
           })
-          .where(eq(users.email, "admin@nextmove.de"));
-
-        res.json({ 
-          logoUrl,
-          message: "Logo erfolgreich hochgeladen",
-          settings: updatedSettings
-        });
-      } catch (error) {
-        console.error("Logo Upload - Database error:", error);
-        throw new Error("Fehler beim Speichern des Logos in der Datenbank");
+          .where(eq(companySettings.id, existingSettings.id));
       }
-    } catch (error) {
-      console.error("Logo Upload - Fatal error:", error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Fehler beim Hochladen des Logos",
-        details: process.env.NODE_ENV === "development" ? error : undefined
+
+      res.json({ 
+        logoUrl,
+        message: "Logo erfolgreich hochgeladen"
       });
+    } catch (error) {
+      console.error("Logo upload error:", error);
+      res.status(500).json({ error: "Fehler beim Logo-Upload" });
+    }
+  });
+
+  app.get("/api/admin/profile", async (req, res) => {
+    try {
+      const adminUser = await db.query.users.findFirst({
+        where: eq(users.email, "admin@nextmove.de")
+      });
+      
+      if (!adminUser) {
+        return res.status(404).json({ error: "Admin user not found" });
+      }
+
+      res.json({ 
+        profileImage: adminUser.profileImage,
+        companyName: adminUser.companyName 
+      });
+    } catch (error) {
+      console.error("Error fetching admin profile:", error);
+      res.status(500).json({ error: "Failed to fetch admin profile" });
     }
   });
 }
