@@ -100,41 +100,19 @@ export function registerRoutes(app: Express) {
       password: z.string().min(8),
       firstName: z.string(),
       lastName: z.string(),
-      companyName: z.string(),
-      domain: z.string(),
+      companyName: z.string().optional(),
     });
 
-    try {
-      const data = schema.parse(req.body);
-      const hashedPassword = await bcrypt.hash(data.password, 10);
+    const data = schema.parse(req.body);
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
-      // Find default admin
-      const defaultAdmin = await db.query.users.findFirst({
-        where: eq(users.email, "admin@nextmove.de")
-      });
+    const newUser = await db.insert(users).values({
+      ...data,
+      password: hashedPassword,
+      role: "customer",
+    }).returning();
 
-      if (!defaultAdmin) {
-        return res.status(500).json({ error: "System configuration error" });
-      }
-
-      const newUser = await db.insert(users).values({
-        ...data,
-        password: hashedPassword,
-        role: "customer",
-        assignedAdmin: defaultAdmin.id,
-      }).returning();
-
-      // Create admin-customer relation
-      await db.insert(adminCustomerRelations).values({
-        adminId: defaultAdmin.id,
-        customerId: newUser[0].id,
-      });
-
-      res.json({ message: "Registrierung erfolgreich" });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(400).json({ error: "Registrierung fehlgeschlagen" });
-    }
+    res.json({ message: "Registrierung erfolgreich" });
   });
 
   // Admin Routes
@@ -163,11 +141,10 @@ export function registerRoutes(app: Express) {
     const pendingUsers = await db.query.users.findMany({
       where: and(
         eq(users.role, "customer"),
-        eq(users.isApproved, false),
-        eq(users.assignedAdmin, req.session.userId)
+        eq(users.isApproved, false)
       )
     });
-    res.json(pendingUsers.map(user => ({ ...user, password: undefined })));
+    res.json(pendingUsers);
   });
 
   app.post("/api/users/:id/approve", requireAdmin, async (req, res) => {

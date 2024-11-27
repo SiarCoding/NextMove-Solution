@@ -9,13 +9,11 @@ export const users = pgTable("users", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   companyName: text("company_name"),
-  domain: text("domain"),
   role: text("role").default("customer").notNull(),
   isApproved: boolean("is_approved").default(false).notNull(),
   profileImage: text("profile_image"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastActive: timestamp("last_active"),
-  assignedAdmin: integer("assigned_admin").references(() => users.id),
 });
 
 export const tutorials = pgTable("tutorials", {
