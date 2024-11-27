@@ -75,6 +75,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
+      credentials: 'include'
     });
 
     if (!res.ok) {
@@ -83,31 +84,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     const data = await res.json();
-    
-    // Wait for session to be saved before proceeding with increased timeout
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("Session save timeout"));
-      }, 500);
-
-      const checkSession = async () => {
-        try {
-          const checkRes = await fetch("/api/auth/session");
-          if (checkRes.ok) {
-            clearTimeout(timeout);
-            resolve();
-          } else {
-            throw new Error("Session check failed");
-          }
-        } catch (error) {
-          setTimeout(checkSession, 100); // Retry after 100ms
-        }
-      };
-
-      checkSession();
-    });
-    
     setUser(data.user);
+    
+    // Wait for session to be fully established
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     localStorage.setItem("cachedUser", JSON.stringify(data.user));
   };
 

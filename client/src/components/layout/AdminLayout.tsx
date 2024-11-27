@@ -50,7 +50,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { data: settings } = useQuery({
     queryKey: ["company-settings"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/settings");
+      const res = await fetch("/api/admin/settings", {
+        credentials: 'include'
+      });
       return res.json();
     },
   });

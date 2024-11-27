@@ -28,7 +28,9 @@ export default function Settings() {
   const { data: settingsData, isLoading } = useQuery({
     queryKey: ["company-settings"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/settings");
+      const res = await fetch("/api/admin/settings", {
+        credentials: 'include'
+      });
       return res.json();
     },
   });
@@ -62,6 +64,7 @@ export default function Settings() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
+        credentials: 'include'
       });
       return res.json();
     },
