@@ -21,16 +21,16 @@ const checklistSchema = z.object({
   companyInfo: z.string().min(1, "Firmeninformation ist erforderlich"),
   webDesign: z.object({
     colorScheme: z.string().min(1, "Farbschema ist erforderlich"),
-    logoUrl: z.string().optional()
+    logoUrl: z.string().optional(),
   }),
   marketResearch: z.object({
-    competitors: z.string().min(1, "Marktforschung ist erforderlich")
+    competitors: z.string().min(1, "Marktforschung ist erforderlich"),
   }),
   legalInfo: z.object({
     address: z.string().min(1, "Anschrift ist erforderlich"),
     impressum: z.string().min(1, "Impressum ist erforderlich"),
-    privacy: z.string().min(1, "Datenschutz ist erforderlich")
-  })
+    privacy: z.string().min(1, "Datenschutz ist erforderlich"),
+  }),
 });
 
 interface ChecklistFormProps {
@@ -49,17 +49,17 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
       companyInfo: "",
       webDesign: {
         colorScheme: "",
-        logoUrl: ""
+        logoUrl: "",
       },
       marketResearch: {
-        competitors: ""
+        competitors: "",
       },
       legalInfo: {
         address: "",
         impressum: "",
-        privacy: ""
-      }
-    }
+        privacy: "",
+      },
+    },
   });
 
   async function onSubmit(values: z.infer<typeof checklistSchema>) {
@@ -69,13 +69,13 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
-        credentials: 'include'
+        credentials: "include",
       });
 
       if (!res.ok) throw new Error("Failed to save checklist");
-      
+
       // Wait for backend to process
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       onComplete();
     } catch (error) {
       console.error(error);
@@ -86,75 +86,82 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <h3 className="text-base font-medium text-white">Zahlungsinformationen</h3>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <div className="grid grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-white">
+              Zahlungsinformationen
+            </h3>
             <FormField
               control={form.control}
               name="paymentOption"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Zahlungsoption</FormLabel>
+                  <FormLabel className="text-[#8F8F90] font-medium">
+                    Zahlungsoption
+                  </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Kreditkarte oder PayPal" 
+                    <Input
+                      placeholder="Kreditkarte oder PayPal"
                       {...field}
-                      className="h-9 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500" 
+                      className="h-11 bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] rounded-lg"
                     />
                   </FormControl>
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="taxId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Steuer-ID</FormLabel>
+                  <FormLabel className="text-[#8F8F90] font-medium">
+                    Steuer-ID
+                  </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="USt-ID/Steuer-ID" 
+                    <Input
+                      placeholder="USt-ID/Steuer-ID"
                       {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500" 
+                      className="h-11 bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] rounded-lg"
                     />
                   </FormControl>
                 </FormItem>
               )}
             />
           </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-white">Online-Präsenz</h3>
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-white">Online-Präsenz</h3>
             <FormField
               control={form.control}
               name="domain"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Domain</FormLabel>
+                  <FormLabel className="text-[#8F8F90] font-medium">
+                    Domain
+                  </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="www.example.de" 
+                    <Input
+                      placeholder="www.example.de"
                       {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500" 
+                      className="h-11 bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] rounded-lg"
                     />
                   </FormControl>
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="webDesign.colorScheme"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Farbschema</FormLabel>
+                  <FormLabel className="text-[#8F8F90] font-medium">
+                    Farbschema
+                  </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="z.B. #FF5733, Blau" 
+                    <Input
+                      placeholder="z.B. #FF5733, Blau"
                       {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500" 
+                      className="h-11 bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] rounded-lg"
                     />
                   </FormControl>
                 </FormItem>
@@ -163,37 +170,42 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-white">Unternehmensinformationen</h3>
+        <div className="space-y-8">
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-white">
+              Unternehmensinformationen
+            </h3>
             <FormField
               control={form.control}
               name="companyInfo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Firmeninformation</FormLabel>
+                  <FormLabel className="text-[#8F8F90] font-medium">
+                    Firmeninformation
+                  </FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Beschreiben Sie Ihr Unternehmen" 
+                    <Textarea
+                      placeholder="Beschreiben Sie Ihr Unternehmen"
                       {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500 min-h-[100px]" 
+                      className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] min-h-[120px] rounded-lg resize-none"
                     />
                   </FormControl>
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="targetAudience"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-300">Zielgruppe</FormLabel>
+                  <FormLabel className="text-[#8F8F90] font-medium">
+                    Zielgruppe
+                  </FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Beschreiben Sie Ihre Zielgruppe (Alter, Interessen, etc.)" 
+                    <Textarea
+                      placeholder="Beschreiben Sie Ihre Zielgruppe (Alter, Interessen, etc.)"
                       {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500 min-h-[100px]" 
+                      className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] min-h-[120px] rounded-lg resize-none"
                     />
                   </FormControl>
                 </FormItem>
@@ -201,48 +213,55 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
             />
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-white">Weitere Informationen</h3>
-            <FormField
-              control={form.control}
-              name="marketResearch.competitors"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">Mitbewerber</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Liste der Mitbewerber-Websites" 
-                      {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500 min-h-[100px]" 
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="legalInfo.address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-300">Anschrift</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Vollständige Geschäftsadresse" 
-                      {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500 min-h-[100px]" 
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+          <div className="pt-6 border-t border-[#2E2E32]">
+            <h3 className="text-lg font-semibold text-white mb-6">
+              Weitere Informationen
+            </h3>
+            <div className="space-y-6">
+              <FormField
+                control={form.control}
+                name="marketResearch.competitors"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[#8F8F90] font-medium">
+                      Mitbewerber
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Liste der Mitbewerber-Websites"
+                        {...field}
+                        className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] min-h-[120px] rounded-lg resize-none"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="legalInfo.address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[#8F8F90] font-medium">
+                      Anschrift
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Vollständige Geschäftsadresse"
+                        {...field}
+                        className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] min-h-[120px] rounded-lg resize-none"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-end pt-4">
-          <Button 
+        <div className="flex justify-end pt-6">
+          <Button
             type="submit"
-            className="bg-orange-500 hover:bg-orange-600 text-white"
+            className="bg-[#ff5733] hover:bg-[#ff7a66] text-white shadow-lg transition-colors px-6"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Wird gespeichert..." : "Speichern & Fortfahren"}

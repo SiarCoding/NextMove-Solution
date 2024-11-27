@@ -26,13 +26,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Plus, Search } from "lucide-react";
 
 export default function Customers() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [newCompanyName, setNewCompanyName] = useState("");
   const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCompany, setFilterCompany] = useState<string>("all");
 
   // Fetch customers
   const { data: customers, isLoading: customersLoading } = useQuery({
@@ -122,6 +124,22 @@ export default function Customers() {
     },
   });
 
+  // Filter and search customers
+  const filteredCustomers = customers?.filter((customer: any) => {
+    const matchesSearch = searchTerm
+      ? `${customer.firstName} ${customer.lastName} ${customer.email}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      : true;
+
+    const matchesCompany =
+      filterCompany === "all" ||
+      (filterCompany === "none" && !customer.companyId) ||
+      customer.companyId?.toString() === filterCompany;
+
+    return matchesSearch && matchesCompany;
+  });
+
   if (customersLoading || companiesLoading) {
     return (
       <AdminLayout>
@@ -181,72 +199,112 @@ export default function Customers() {
           </Dialog>
         </div>
 
-        <div className="bg-card rounded-lg border shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>E-Mail</TableHead>
-                <TableHead>Unternehmen</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Registriert am</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers?.map((customer: any) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    {customer.firstName} {customer.lastName}
-                  </TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={customer.companyId?.toString()}
-                      onValueChange={(value) =>
-                        updateCustomerCompany.mutate({
-                          customerId: customer.id,
-                          companyId: parseInt(value),
-                        })
-                      }
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue>
-                          {customer.companyName || "Kein Unternehmen"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companies?.map((company: any) => (
-                          <SelectItem
-                            key={company.id}
-                            value={company.id.toString()}
-                          >
-                            <div className="flex items-center">
-                              <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
-                              {company.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        customer.isApproved
-                          ? "bg-green-500/10 text-green-500"
-                          : "bg-yellow-500/10 text-yellow-500"
-                      }`}
-                    >
-                      {customer.isApproved ? "Freigegeben" : "Ausstehend"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(customer.createdAt).toLocaleDateString("de-DE")}
-                  </TableCell>
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Kunden suchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={filterCompany}
+              onValueChange={setFilterCompany}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Nach Unternehmen filtern" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Unternehmen</SelectItem>
+                <SelectItem value="none">Ohne Unternehmen</SelectItem>
+                {companies?.map((company: any) => (
+                  <SelectItem key={company.id} value={company.id.toString()}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="bg-card rounded-lg border shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>E-Mail</TableHead>
+                  <TableHead>Unternehmen</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Registriert am</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers?.map((customer: any) => (
+                  <TableRow key={customer.id}>
+                    <TableCell>
+                      {customer.firstName} {customer.lastName}
+                    </TableCell>
+                    <TableCell>{customer.email}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={customer.companyId?.toString()}
+                        onValueChange={(value) =>
+                          updateCustomerCompany.mutate({
+                            customerId: customer.id,
+                            companyId: parseInt(value),
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-48">
+                          <SelectValue>
+                            {customer.companyName || "Kein Unternehmen"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {companies?.map((company: any) => (
+                            <SelectItem
+                              key={company.id}
+                              value={company.id.toString()}
+                            >
+                              <div className="flex items-center">
+                                <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
+                                {company.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          customer.isApproved
+                            ? "bg-green-500/10 text-green-500"
+                            : "bg-yellow-500/10 text-yellow-500"
+                        }`}
+                      >
+                        {customer.isApproved ? "Freigegeben" : "Ausstehend"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(customer.createdAt).toLocaleDateString("de-DE")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredCustomers?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        Keine Kunden gefunden
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     </AdminLayout>

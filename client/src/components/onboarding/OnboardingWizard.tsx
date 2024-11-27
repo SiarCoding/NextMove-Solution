@@ -8,16 +8,16 @@ import ChecklistForm from "./ChecklistForm";
 const steps = [
   {
     title: "Willkommen",
-    description: "Erste Schritte im Portal"
+    description: "Erste Schritte im Portal",
   },
   {
     title: "Einführungsvideo",
-    description: "Lernen Sie die wichtigsten Funktionen kennen"
+    description: "Lernen Sie die wichtigsten Funktionen kennen",
   },
   {
     title: "Checkliste",
-    description: "Wichtige Informationen für den Start"
-  }
+    description: "Wichtige Informationen für den Start",
+  },
 ];
 
 export default function OnboardingWizard() {
@@ -29,8 +29,7 @@ export default function OnboardingWizard() {
   const handleComplete = async () => {
     try {
       setCurrentStep(currentStep + 1);
-      // Wait for state updates to process
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       window.location.href = "/dashboard";
     } catch (error) {
       console.error("Navigation error:", error);
@@ -38,66 +37,72 @@ export default function OnboardingWizard() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#1a1b1e] z-50 overflow-auto">
-      <div className="container max-w-5xl mx-auto py-8">
-        <div className="bg-card/10 w-full p-6 rounded-xl border border-border/20 shadow-lg backdrop-blur-sm">
-          <div className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">{steps[currentStep].title}</h2>
-              <p className="text-gray-400">{steps[currentStep].description}</p>
+    <div className="fixed inset-0 bg-[#0A0A0B] z-50 overflow-auto">
+      <div className="container max-w-5xl mx-auto py-12">
+        <div className="bg-[#141417]/80 w-full p-8 rounded-2xl border border-[#ffffff0f] shadow-2xl backdrop-blur-xl">
+          <div className="space-y-10">
+            <div className="space-y-3">
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
+                {steps[currentStep].title}
+              </h2>
+              <p className="text-[#8F8F90] text-lg">
+                {steps[currentStep].description}
+              </p>
             </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-400">Fortschritt</span>
-                <span className="text-orange-500">{Math.round(progress)}%</span>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-[#8F8F90] font-medium">Fortschritt</span>
+                <span className="text-[#ff5733] font-medium">
+                  {Math.round(progress)}%
+                </span>
               </div>
-              <Progress value={progress} className="h-2 bg-gray-800" />
-              
-              <div className="flex justify-between mt-2">
+              <Progress
+                value={progress}
+                className="h-1.5 bg-[#1E1E20] [&>div]:bg-gradient-to-r [&>div]:from-[#ff5733] [&>div]:to-[#ff7a66]"
+              />
+              <div className="flex justify-between mt-4">
                 {steps.map((step, index) => (
                   <div
                     key={index}
-                    className={`flex items-center ${index > 0 ? 'ml-4' : ''}`}
+                    className={`flex items-center ${index > 0 ? "ml-4" : ""}`}
                   >
                     <div
-                      className={`w-3 h-3 rounded-full ${
+                      className={`w-2.5 h-2.5 rounded-full transition-colors ${
                         currentStep > index
-                          ? 'bg-orange-500'
+                          ? "bg-[#ff5733]"
                           : currentStep === index
-                          ? 'bg-orange-500/50'
-                          : 'bg-gray-700'
+                            ? "bg-[#ff5733]/50"
+                            : "bg-[#2E2E32]"
                       }`}
                     />
-                    <span className="ml-2 text-xs text-gray-400">{step.title}</span>
+                    <span className="ml-3 text-sm font-medium text-[#8F8F90]">
+                      {step.title}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
-
             {currentStep === 1 && (
-              <div className="aspect-video bg-gray-800 rounded-lg border border-border/20">
+              <div className="aspect-video bg-[#1E1E20] rounded-xl border border-[#ffffff0f] shadow-lg">
                 {/* Video player component */}
               </div>
             )}
-
-            {currentStep === 2 && (
-              <ChecklistForm onComplete={handleComplete} />
-            )}
-
-            <div className="flex justify-between pt-4">
+            {currentStep === 2 && <ChecklistForm onComplete={handleComplete} />}
+            <div className="flex justify-between pt-6">
               <Button
                 variant="outline"
                 onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
                 disabled={currentStep === 0}
-                className="border-gray-700 hover:bg-gray-800 text-gray-300"
+                className="border-[#2E2E32] hover:bg-[#1E1E20] text-[#8F8F90] hover:text-white transition-colors"
               >
                 Zurück
               </Button>
               <Button
-                onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}
+                onClick={() =>
+                  setCurrentStep(Math.min(steps.length - 1, currentStep + 1))
+                }
                 disabled={currentStep === steps.length - 1}
-                className="bg-orange-500 hover:bg-orange-600 text-white"
+                className="bg-[#ff5733] hover:bg-[#ff7a66] text-white shadow-lg transition-colors"
               >
                 Weiter
               </Button>
