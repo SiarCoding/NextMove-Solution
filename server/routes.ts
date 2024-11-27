@@ -68,7 +68,9 @@ export function registerRoutes(app: Express) {
           firstName,
           lastName,
           role: "customer",
-          assignedAdmin: "admin@nextmove.de"
+          assignedAdmin: "admin@nextmove.de",
+          isApproved: false,
+          onboardingCompleted: false
         })
         .returning();
 
@@ -189,8 +191,21 @@ export function registerRoutes(app: Express) {
   // Customer tracking routes
   app.get("/api/admin/customers/tracking", requireAdmin, async (req, res) => {
     try {
+      // Get the admin's email
+      const adminUser = await db.query.users.findFirst({
+        where: eq(users.id, req.session.userId)
+      });
+
+      if (!adminUser) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+
+      // Get customers assigned to this admin
       const customers = await db.query.users.findMany({
-        where: eq(users.role, "customer"),
+        where: and(
+          eq(users.role, "customer"),
+          eq(users.assignedAdmin, adminUser.email)
+        ),
         columns: {
           id: true,
           firstName: true,
