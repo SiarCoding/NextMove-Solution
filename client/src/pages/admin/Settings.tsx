@@ -31,8 +31,11 @@ export default function Settings() {
       const res = await fetch("/api/admin/settings", {
         credentials: 'include'
       });
+      if (!res.ok) throw new Error("Failed to fetch settings");
       return res.json();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 30 * 60 * 1000, // 30 minutes
   });
 
   const form = useForm<z.infer<typeof companySettingsSchema>>({
@@ -101,6 +104,7 @@ export default function Settings() {
       const res = await fetch("/api/admin/logo", {
         method: "POST",
         body: formData,
+        credentials: 'include'
       });
 
       if (!res.ok) throw new Error();

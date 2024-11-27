@@ -86,9 +86,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const { data: settings } = useQuery({
     queryKey: ["company-settings"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/settings");
+      const res = await fetch("/api/admin/settings", {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error("Failed to fetch settings");
       return res.json();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 30 * 60 * 1000, // 30 minutes
   });
 
   return (
