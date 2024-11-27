@@ -1,6 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { db } from "../db";
-import { users, tutorials, userProgress, metrics, referrals, callbacks } from "@db/schema";
+import { users, tutorials, userProgress, metrics, referrals, callbacks, companySettings } from "@db/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
@@ -188,5 +191,95 @@ export function registerRoutes(app: Express) {
   app.post("/api/referrals", async (req, res) => {
     const newReferral = await db.insert(referrals).values(req.body).returning();
     res.json(newReferral[0]);
+  });
+
+  // Configure multer for logo uploads
+  const storage = multer.diskStorage({
+    destination: "./uploads/",
+    filename: (req, file, cb) => {
+      cb(null, "company-logo" + path.extname(file.originalname));
+    }
+  });
+
+  const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+      if (!allowedTypes.includes(file.mimetype)) {
+        cb(new Error("Ungültiger Dateityp"));
+        return;
+      }
+      cb(null, true);
+    }
+  });
+
+  // Settings Routes
+  app.get("/api/admin/settings", requireAdmin, async (req, res) => {
+    const settings = await db.query.companySettings.findFirst();
+    res.json(settings || {});
+  });
+
+  app.post("/api/admin/settings", requireAdmin, async (req, res) => {
+    const existingSettings = await db.query.companySettings.findFirst();
+    
+    if (existingSettings) {
+      await db.update(companySettings)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(companySettings.id, existingSettings.id));
+    } else {
+      await db.insert(companySettings).values({
+        ...req.body,
+        updatedAt: new Date(),
+      });
+    }
+
+    res.json({ message: "Einstellungen aktualisiert" });
+  });
+
+  app.post("/api/admin/logo", requireAdmin, upload.single("logo"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Keine Datei hochgeladen" });
+      }
+
+      const logoUrl = `/uploads/${req.file.filename}`;
+      const existingSettings = await db.query.companySettings.findFirst();
+
+      if (existingSettings) {
+        // Delete old logo if exists
+        if (existingSettings.logoUrl) {
+          const oldLogoPath = path.join(".", existingSettings.logoUrl);
+          try {
+            await fs.unlink(oldLogoPath);
+          } catch (error) {
+            console.error("Error deleting old logo:", error);
+          }
+        }
+
+        await db.update(companySettings)
+          .set({
+            logoUrl,
+            updatedAt: new Date(),
+          })
+          .where(eq(companySettings.id, existingSettings.id));
+      } else {
+        await db.insert(companySettings).values({
+          logoUrl,
+          companyName: "",
+          email: "",
+          phone: "",
+          address: "",
+          updatedAt: new Date(),
+        });
+      }
+
+      res.json({ logoUrl });
+    } catch (error) {
+      res.status(500).json({ error: "Fehler beim Hochladen des Logos" });
+    }
   });
 }

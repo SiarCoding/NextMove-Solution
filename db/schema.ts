@@ -83,3 +83,17 @@ export type User = z.infer<typeof selectUserSchema>;
 export type Tutorial = z.infer<typeof selectTutorialSchema>;
 export type UserProgress = z.infer<typeof selectProgressSchema>;
 export type Metrics = z.infer<typeof selectMetricsSchema>;
+
+export const companySettings = pgTable("company_settings", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  companyName: text("company_name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address").notNull(),
+  logoUrl: text("logo_url"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCompanySettingsSchema = createInsertSchema(companySettings);
+export const selectCompanySettingsSchema = createSelectSchema(companySettings);
+export type CompanySettings = z.infer<typeof selectCompanySettingsSchema>;
