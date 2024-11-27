@@ -185,6 +185,86 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Customer tracking routes
+  app.get("/api/admin/customers/tracking", requireAdmin, async (req, res) => {
+    try {
+      const customers = await db.query.users.findMany({
+        where: eq(users.role, "customer"),
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          createdAt: true,
+          lastActive: true
+        }
+      });
+
+      const enrichedCustomers = await Promise.all(customers.map(async (customer) => {
+        const progress = await db.query.userProgress.findFirst({
+          where: eq(users.id, customer.id)
+        });
+
+        const checklist = await db.query.checklist.findFirst({
+          where: eq(users.id, customer.id)
+        });
+
+        return {
+          ...customer,
+          progress: progress?.progress || 0,
+          currentPhase: progress?.currentPhase || "Checkliste",
+          completedPhases: progress?.completedPhases || []
+        };
+      }));
+
+      res.json(enrichedCustomers);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to fetch customer tracking" });
+    }
+  });
+
+  app.post("/api/onboarding/checklist", requireAuth, async (req, res) => {
+    try {
+      const { userId } = req.session;
+      
+      // Save checklist
+      await db.insert(checklist).values({
+        ...req.body,
+        userId,
+        updatedAt: new Date()
+      });
+
+      // Update progress
+      const progress = await db.query.userProgress.findFirst({
+        where: eq(users.id, userId)
+      });
+
+      if (progress) {
+        await db.update(userProgress)
+          .set({ 
+            progress: progress.progress + 20,
+            currentPhase: "Landingpage",
+            completedPhases: [...progress.completedPhases, "Checkliste"],
+            updatedAt: new Date()
+          })
+          .where(eq(userProgress.userId, userId));
+      } else {
+        await db.insert(userProgress).values({
+          userId,
+          progress: 20,
+          currentPhase: "Landingpage",
+          completedPhases: ["Checkliste"]
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to save checklist" });
+    }
+  });
+
   // Admin settings routes
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     try {
