@@ -86,10 +86,10 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-white">Zahlungsinformationen</h3>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <h3 className="text-base font-medium text-white">Zahlungsinformationen</h3>
             <FormField
               control={form.control}
               name="paymentOption"
@@ -100,7 +100,7 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
                     <Input 
                       placeholder="Kreditkarte oder PayPal" 
                       {...field}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500" 
+                      className="h-9 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-orange-500" 
                     />
                   </FormControl>
                 </FormItem>
@@ -242,7 +242,7 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit"
-            className="bg-orange-500 hover:bg-orange-600 text-white w-full md:w-auto"
+            className="bg-orange-500 hover:bg-orange-600 text-white"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Wird gespeichert..." : "Speichern & Fortfahren"}

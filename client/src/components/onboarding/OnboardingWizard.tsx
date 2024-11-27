@@ -38,9 +38,9 @@ export default function OnboardingWizard() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#1a1b1e] z-50">
-      <div className="container max-w-4xl mx-auto h-screen flex items-center">
-        <div className="bg-card/10 w-full p-8 rounded-xl border border-border/20 shadow-lg backdrop-blur-sm">
+    <div className="fixed inset-0 bg-[#1a1b1e] z-50 overflow-auto">
+      <div className="container max-w-5xl mx-auto py-8">
+        <div className="bg-card/10 w-full p-6 rounded-xl border border-border/20 shadow-lg backdrop-blur-sm">
           <div className="space-y-8">
             <div className="space-y-2">
               <h2 className="text-2xl font-bold text-white">{steps[currentStep].title}</h2>

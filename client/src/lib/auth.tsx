@@ -30,12 +30,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const checkSession = async (retryCount = 0) => {
       try {
-        // Try to get cached user first
-        const cachedUser = localStorage.getItem("cachedUser");
-        if (cachedUser && !user) {
-          setUser(JSON.parse(cachedUser));
-        }
-
         const res = await fetch("/api/auth/session", {
           credentials: 'include'
         });
@@ -46,37 +40,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setUser(data.user);
             localStorage.setItem("cachedUser", JSON.stringify(data.user));
           } else {
-            throw new Error("No user data in response");
+            // If no user data but response is OK, clear the user
+            setUser(null);
+            localStorage.removeItem("cachedUser");
           }
         } else {
-          // Only retry on network errors or 401, not on other status codes
-          if (retryCount < 3 && (res.status === 401 || !res.ok)) {
+          // Try to use cached user if available
+          const cachedUser = localStorage.getItem("cachedUser");
+          if (cachedUser && !user) {
+            setUser(JSON.parse(cachedUser));
+          } else if (retryCount < 3) {
             console.log(`Retrying session check (${retryCount + 1}/3)...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
             return checkSession(retryCount + 1);
+          } else {
+            // Clear user data after all retries fail
+            setUser(null);
+            localStorage.removeItem("cachedUser");
           }
-          throw new Error(await res.text());
         }
       } catch (error) {
         console.error("Session check failed:", error);
-        // Only clear user on final retry
         if (retryCount >= 2) {
           setUser(null);
           localStorage.removeItem("cachedUser");
         }
       } finally {
-        if (retryCount === 0) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
     checkSession();
 
-    const intervalId = setInterval(() => checkSession(), 2 * 60 * 1000);
+    const intervalId = setInterval(checkSession, 2 * 60 * 1000);
 
     return () => clearInterval(intervalId);
-  }, [user]);
+  }, []);
 
   const login = async (email: string, password: string, portal: "admin" | "customer") => {
     const res = await fetch("/api/auth/login", {
