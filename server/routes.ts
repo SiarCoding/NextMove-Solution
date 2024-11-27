@@ -221,23 +221,45 @@ export function registerRoutes(app: Express) {
   });
 
   app.post("/api/admin/settings", requireAdmin, async (req, res) => {
-    const existingSettings = await db.query.companySettings.findFirst();
-    
-    if (existingSettings) {
-      await db.update(companySettings)
-        .set({
-          ...req.body,
-          updatedAt: new Date(),
-        })
-        .where(eq(companySettings.id, existingSettings.id));
-    } else {
-      await db.insert(companySettings).values({
-        ...req.body,
-        updatedAt: new Date(),
+    try {
+      const schema = z.object({
+        companyName: z.string().min(1, "Firmenname ist erforderlich"),
+        email: z.string().email("Ungültige E-Mail-Adresse"),
+        phone: z.string().min(1, "Telefonnummer ist erforderlich"),
+        address: z.string().min(1, "Adresse ist erforderlich"),
       });
-    }
 
-    res.json({ message: "Einstellungen aktualisiert" });
+      const validatedData = schema.parse(req.body);
+      const existingSettings = await db.query.companySettings.findFirst();
+      
+      if (existingSettings) {
+        await db.update(companySettings)
+          .set({
+            ...validatedData,
+            updatedAt: new Date(),
+          })
+          .where(eq(companySettings.id, existingSettings.id));
+      } else {
+        await db.insert(companySettings).values({
+          ...validatedData,
+          updatedAt: new Date(),
+        });
+      }
+
+      res.json({ message: "Einstellungen aktualisiert", success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          error: "Validierungsfehler", 
+          details: error.errors 
+        });
+      } else {
+        console.error("Settings update error:", error);
+        res.status(500).json({ 
+          error: "Einstellungen konnten nicht gespeichert werden" 
+        });
+      }
+    }
   });
 
   app.post("/api/admin/logo", requireAdmin, upload.single("logo"), async (req, res) => {

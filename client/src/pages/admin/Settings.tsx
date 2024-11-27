@@ -37,7 +37,7 @@ export default function Settings() {
     resolver: zodResolver(companySettingsSchema),
     defaultValues: {
       companyName: "",
-      email: "",
+      email: "admin@nextmove.de",
       phone: "",
       address: "",
     },
