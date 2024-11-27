@@ -243,7 +243,8 @@ export function registerRoutes(app: Express) {
         })
         .where(eq(users.id, userId));
 
-      res.json({ success: true });
+      // Send success response
+      res.status(200).json({ success: true });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Failed to save checklist" });

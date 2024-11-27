@@ -77,7 +77,6 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
       // Wait for backend to process
       await new Promise(resolve => setTimeout(resolve, 1000));
       onComplete();
-      window.location.reload(); // Force reload to update dashboard state
     } catch (error) {
       console.error(error);
     } finally {
