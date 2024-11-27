@@ -28,10 +28,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    const checkSession = async () => {
+    const checkSession = async (retryCount = 0) => {
       try {
-        const res = await fetch("/api/auth/session");
+        const res = await fetch("/api/auth/session", {
+          credentials: 'include'
+        });
+        
         if (!res.ok) {
+          if (retryCount < 3 && res.status === 401) {
+            // Retry after 1 second for 401 errors
+            console.log(`Retrying session check (${retryCount + 1}/3)...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return checkSession(retryCount + 1);
+          }
           throw new Error(res.statusText);
         }
         
@@ -64,8 +73,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     checkSession();
 
-    // Set up periodic session check
-    const intervalId = setInterval(checkSession, 5 * 60 * 1000); // Check every 5 minutes
+    // Set up periodic session check every 2 minutes
+    const intervalId = setInterval(checkSession, 2 * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);

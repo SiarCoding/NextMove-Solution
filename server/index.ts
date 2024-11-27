@@ -2,6 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { createServer } from "http";
+import cors from "cors";
+import session from "express-session";
 
 function log(message: string) {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -15,6 +17,27 @@ function log(message: string) {
 }
 
 const app = express();
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === "production" ? false : "http://localhost:5000",
+  credentials: true
+}));
+
+// Session configuration
+app.use(session({
+  secret: "your-secret-key",
+  resave: true,
+  saveUninitialized: true,
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: "lax",
+    path: "/"
+  }
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
