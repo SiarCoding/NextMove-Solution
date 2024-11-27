@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -37,6 +38,7 @@ interface ChecklistFormProps {
 }
 
 export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<z.infer<typeof checklistSchema>>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
@@ -62,6 +64,7 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
 
   async function onSubmit(values: z.infer<typeof checklistSchema>) {
     try {
+      setIsSubmitting(true);
       const res = await fetch("/api/onboarding/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,13 +72,15 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
         credentials: 'include'
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error("Failed to save checklist");
       
       // Wait for the backend to process
       await new Promise(resolve => setTimeout(resolve, 500));
       onComplete();
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -240,8 +245,9 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
           <Button 
             type="submit"
             className="bg-orange-500 hover:bg-orange-600 text-white w-full md:w-auto"
+            disabled={isSubmitting}
           >
-            Speichern & Fortfahren
+            {isSubmitting ? "Wird gespeichert..." : "Speichern & Fortfahren"}
           </Button>
         </div>
       </form>
