@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
+  ActivitySquare,
   FileVideo,
   Settings,
   LogOut,
@@ -19,67 +20,77 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const menuItems = [
     {
-      icon: <LayoutDashboard className="mr-2 h-4 w-4" />,
+      icon: <LayoutDashboard className="h-4 w-4" />,
       label: "Dashboard",
-      path: "/admin",
+      path: "/admin"
     },
     {
-      icon: <Users className="mr-2 h-4 w-4" />,
-      label: "Benutzerfreigabe",
-      path: "/admin/users",
+      icon: <Users className="h-4 w-4" />,
+      label: "Kundenliste",
+      path: "/admin/customers"
     },
     {
-      icon: <FileVideo className="mr-2 h-4 w-4" />,
+      icon: <ActivitySquare className="h-4 w-4" />,
+      label: "Kundentracking",
+      path: "/admin/tracking"
+    },
+    {
+      icon: <FileVideo className="h-4 w-4" />,
       label: "Content",
-      path: "/admin/content",
+      path: "/admin/content"
     },
     {
-      icon: <Settings className="mr-2 h-4 w-4" />,
+      icon: <Settings className="h-4 w-4" />,
       label: "Einstellungen",
-      path: "/admin/settings",
-    },
+      path: "/admin/settings"
+    }
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex h-screen">
-        {/* Sidebar */}
-        <div className="w-64 bg-card border-r">
-          <div className="p-4">
-            <h1 className="text-xl font-bold text-primary">Admin Portal</h1>
-            <p className="text-sm text-muted-foreground">Verwaltung</p>
+    <div className="min-h-screen flex bg-background">
+      {/* Sidebar */}
+      <div className="w-64 bg-[#1a1b1e] border-r border-border">
+        {/* Logo & Titel */}
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center space-x-3">
+            <div>
+              <h1 className="text-lg font-semibold text-primary">Admin Portal</h1>
+              <p className="text-sm text-muted-foreground">Verwaltung</p>
+            </div>
           </div>
+        </div>
 
-          <nav className="space-y-1 p-2">
-            {menuItems.map((item) => (
-              <Button
-                key={item.path}
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => navigate(item.path)}
-              >
-                {item.icon}
-                {item.label}
-              </Button>
-            ))}
-          </nav>
-
-          <div className="absolute bottom-4 left-4 right-4">
+        {/* Navigation */}
+        <nav className="p-4 space-y-2">
+          {menuItems.map((item) => (
             <Button
+              key={item.path}
               variant="ghost"
-              className="w-full justify-start text-destructive"
-              onClick={logout}
+              className="w-full justify-start hover:bg-primary/10 hover:text-primary transition-colors"
+              onClick={() => navigate(item.path)}
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Abmelden
+              {item.icon}
+              <span className="ml-2">{item.label}</span>
             </Button>
-          </div>
-        </div>
+          ))}
+        </nav>
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="p-6">{children}</div>
+        {/* Logout Button */}
+        <div className="absolute bottom-4 left-4 right-4">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={logout}
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="ml-2">Abmelden</span>
+          </Button>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
