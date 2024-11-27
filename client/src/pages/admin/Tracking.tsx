@@ -51,7 +51,7 @@ export default function Tracking() {
                 <Progress value={customer.progress} className="h-2" />
                 
                 <div className="grid grid-cols-6 gap-2 text-sm">
-                  {["Checkliste", "Landingpage", "Werbeanzeigen", "WhatsApp-Bot", "CRM", "Webinar"].map((phase, index) => (
+                  {["Checkliste", "Landingpage", "Werbeanzeigen", "WhatsApp-Bot", "CRM", "Webinar"].map((phase) => (
                     <div 
                       key={phase}
                       className={`p-2 rounded-full text-center text-xs ${

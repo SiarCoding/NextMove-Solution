@@ -90,7 +90,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               )}
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-primary">
+              <h1 className="text-lg font-semibold text-white">
                 {settings?.companyName || "Admin Portal"}
               </h1>
               <p className="text-sm text-muted-foreground">Adminportal</p>
