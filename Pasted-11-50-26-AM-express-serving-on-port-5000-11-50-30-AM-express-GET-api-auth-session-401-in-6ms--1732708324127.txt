@@ -1,0 +1,46 @@
+11:50:26 AM [express] serving on port 5000
+11:50:30 AM [express] GET /api/auth/session 401 in 6ms :: {"error":"Nicht authentifiziert"}
+11:50:30 AM [express] GET /api/auth/session 401 in 0ms :: {"error":"Nicht authentifiziert"}
+
+ ERROR(TypeScript)  Binding element 'onComplete' implicitly has an 'any' type.
+ FILE  /home/runner/Kundenportal-Entwicklung/client/src/components/onboarding/ChecklistForm.tsx:35:41
+
+    33 | });
+    34 |
+  > 35 | export default function ChecklistForm({ onComplete }) {
+       |                                         ^^^^^^^^^^
+    36 |   const form = useForm({
+    37 |     resolver: zodResolver(checklistSchema),
+    38 |     defaultValues: {
+
+ ERROR(TypeScript)  Parameter 'values' implicitly has an 'any' type.
+ FILE  /home/runner/Kundenportal-Entwicklung/client/src/components/onboarding/ChecklistForm.tsx:59:27
+
+    57 |   });
+    58 |
+  > 59 |   async function onSubmit(values) {
+       |                           ^^^^^^
+    60 |     try {
+    61 |       const res = await fetch("/api/onboarding/checklist", {
+    62 |         method: "POST",
+
+ ERROR(TypeScript)  No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: number | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'number | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<number | undefined>, right: number | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<number | undefined>'.
+      Type 'PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<number | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:229:16
+
+    227 |           onboardingCompleted: false
+    228 |         })
+  > 229 |         .where(eq(users.id, userId));
+        |                ^^
+    230 |
+    231 |       res.json({ success: true });
+    232 |     } catch (error) {
+
+[TypeScript] Found 3 errors. Watching for file changes.

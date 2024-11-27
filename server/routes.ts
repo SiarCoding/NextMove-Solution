@@ -216,7 +216,7 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/onboarding/checklist", requireAuth, async (req, res) => {
     try {
-      const { userId } = req.session;
+      const userId = req.session.userId as number;
       
       // Update user progress
       await db.update(users)

@@ -32,8 +32,12 @@ const checklistSchema = z.object({
   })
 });
 
-export default function ChecklistForm({ onComplete }) {
-  const form = useForm({
+interface ChecklistFormProps {
+  onComplete: () => void;
+}
+
+export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
+  const form = useForm<z.infer<typeof checklistSchema>>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       paymentOption: "",
@@ -56,7 +60,7 @@ export default function ChecklistForm({ onComplete }) {
     }
   });
 
-  async function onSubmit(values) {
+  async function onSubmit(values: z.infer<typeof checklistSchema>) {
     try {
       const res = await fetch("/api/onboarding/checklist", {
         method: "POST",
