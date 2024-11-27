@@ -1,6 +1,7 @@
 import { useAuth } from "../../lib/auth.tsx";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   PlayCircle,
@@ -82,16 +83,35 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
     }
   };
 
+  const { data: settings } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/settings");
+      return res.json();
+    },
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <div className="flex h-screen">
         {/* Sidebar */}
         <div className="w-64 bg-card border-r">
-          <div className="p-4">
-            <h1 className="text-xl font-bold text-primary">Kundenportal</h1>
-            <p className="text-sm text-muted-foreground">
-              {user?.companyName}
-            </p>
+          <div className="p-4 flex items-center space-x-3">
+            {settings?.logoUrl && (
+              <img
+                src={settings.logoUrl}
+                alt="Company Logo"
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            )}
+            <div>
+              <h1 className="text-xl font-bold text-primary">
+                {settings?.companyName || "Kundenportal"}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {user?.companyName}
+              </p>
+            </div>
           </div>
 
           <nav className="space-y-1 p-2">

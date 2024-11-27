@@ -1,6 +1,7 @@
 import { useAuth } from "../../lib/auth.tsx";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
@@ -46,6 +47,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   ];
 
+  const { data: settings } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/settings");
+      return res.json();
+    },
+  });
+
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
@@ -53,9 +62,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Logo & Titel */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center space-x-3">
+            {settings?.logoUrl && (
+              <img
+                src={settings.logoUrl}
+                alt="Company Logo"
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            )}
             <div>
-              <h1 className="text-lg font-semibold text-primary">Admin Portal</h1>
-              <p className="text-sm text-muted-foreground">Verwaltung</p>
+              <h1 className="text-lg font-semibold text-primary">
+                {settings?.companyName || "Admin Portal"}
+              </h1>
+              <p className="text-sm text-muted-foreground">Adminportal</p>
             </div>
           </div>
         </div>

@@ -22,7 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Upload, Users, Building } from "lucide-react";
+import { Upload, Building } from "lucide-react";
 
 const companySettingsSchema = z.object({
   companyName: z.string().min(1, "Firmenname ist erforderlich"),
@@ -37,21 +37,21 @@ export default function Settings() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
-  const form = useForm<z.infer<typeof companySettingsSchema>>({
-    resolver: zodResolver(companySettingsSchema),
-    defaultValues: {
-      companyName: "",
-      email: "",
-      phone: "",
-      address: "",
-    },
-  });
-
-  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+  const { data: settingsData, isLoading } = useQuery({
     queryKey: ["company-settings"],
     queryFn: async () => {
       const res = await fetch("/api/admin/settings");
       return res.json();
+    },
+  });
+
+  const form = useForm<z.infer<typeof companySettingsSchema>>({
+    resolver: zodResolver(companySettingsSchema),
+    defaultValues: {
+      companyName: settingsData?.companyName || "",
+      email: settingsData?.email || "",
+      phone: settingsData?.phone || "",
+      address: settingsData?.address || "",
     },
   });
 
@@ -115,6 +115,14 @@ export default function Settings() {
     await updateSettings.mutateAsync(values);
   }
 
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div>Lädt...</div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
       <div className="space-y-8">
@@ -136,20 +144,23 @@ export default function Settings() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {previewUrl && (
-                  <div className="w-32 h-32 rounded-lg overflow-hidden border border-border">
+                <div className="w-32 h-32 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center">
+                  {(previewUrl || settingsData?.logoUrl) ? (
                     <img
-                      src={previewUrl}
+                      src={previewUrl || settingsData?.logoUrl}
                       alt="Logo Vorschau"
                       className="w-full h-full object-cover"
                     />
-                  </div>
-                )}
+                  ) : (
+                    <Building className="w-12 h-12 text-muted-foreground" />
+                  )}
+                </div>
                 <div className="flex items-center space-x-4">
                   <Input
                     type="file"
                     accept="image/*"
                     onChange={handleLogoChange}
+                    className="bg-muted"
                   />
                   <Button
                     onClick={handleLogoUpload}
