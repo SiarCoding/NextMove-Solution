@@ -22,6 +22,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1, "Vorname ist erforderlich"),
   lastName: z.string().min(1, "Nachname ist erforderlich"),
   companyName: z.string().min(1, "Firmenname ist erforderlich"),
+  domain: z.string().min(1, "Domain ist erforderlich"),
 });
 
 export default function Register() {
@@ -37,6 +38,7 @@ export default function Register() {
       firstName: "",
       lastName: "",
       companyName: "",
+      domain: "",
     },
   });
 
@@ -174,6 +176,24 @@ export default function Register() {
                       <FormControl>
                         <Input 
                           placeholder="Musterfirma GmbH" 
+                          className="bg-[#1a1b1e] border-border"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="domain"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Domain</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="firma.de" 
                           className="bg-[#1a1b1e] border-border"
                           {...field} 
                         />
