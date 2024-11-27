@@ -28,37 +28,14 @@ export default function OnboardingWizard() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     try {
       setError(null);
-      
-      // First update the current step
       setCurrentStep(currentStep + 1);
-      
-      // Wait for state update
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Verify onboarding completion status
-      const res = await fetch("/api/auth/session", {
-        credentials: "include"
-      });
-
-      if (!res.ok) {
-        throw new Error("Sitzung konnte nicht überprüft werden");
-      }
-
-      const data = await res.json();
-      
-      if (!data.user?.onboardingCompleted) {
-        throw new Error("Onboarding wurde nicht erfolgreich abgeschlossen");
-      }
-
-      // Only navigate after confirming the update
       navigate("/dashboard");
     } catch (error) {
-      console.error("Onboarding error:", error);
-      setError(error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten");
-      // Revert step on error
+      console.error("Navigation error:", error);
+      setError("Ein Fehler ist beim Navigieren aufgetreten");
       setCurrentStep(currentStep);
     }
   };

@@ -68,6 +68,7 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
     try {
       setError(null);
       setIsSubmitting(true);
+      
       const res = await fetch("/api/onboarding/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,11 +80,11 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
         const errorData = await res.json();
         throw new Error(errorData.error || "Fehler beim Speichern der Checkliste");
       }
-      
-      // Only trigger onComplete if the API call was successful
+
+      // Call onComplete immediately after successful API call
       onComplete();
     } catch (error) {
-      console.error(error);
+      console.error("Fehler beim Speichern:", error);
       setError(error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten");
     } finally {
       setIsSubmitting(false);
