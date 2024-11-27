@@ -46,7 +46,7 @@ export function registerRoutes(app: Express) {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { email, password, firstName, lastName, companyName } = req.body;
+      const { email, password, firstName, lastName } = req.body;
 
       // Check if user already exists
       const existingUser = await db.query.users.findFirst({
@@ -67,7 +67,6 @@ export function registerRoutes(app: Express) {
           password: hashedPassword,
           firstName,
           lastName,
-          companyName,
           role: "customer"
         })
         .returning();
