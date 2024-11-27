@@ -193,21 +193,39 @@ export function registerRoutes(app: Express) {
     res.json(newReferral[0]);
   });
 
+  // Ensure uploads directory exists
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  (async () => {
+    try {
+      await fs.access(uploadsDir);
+    } catch {
+      await fs.mkdir(uploadsDir, { recursive: true });
+    }
+  })();
+
   // Configure multer for logo uploads
   const storage = multer.diskStorage({
-    destination: "./uploads/",
+    destination: async (req, file, cb) => {
+      try {
+        await fs.access(uploadsDir);
+        cb(null, uploadsDir);
+      } catch (error) {
+        cb(error as Error, uploadsDir);
+      }
+    },
     filename: (req, file, cb) => {
-      cb(null, "company-logo" + path.extname(file.originalname));
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+      cb(null, "company-logo-" + uniqueSuffix + path.extname(file.originalname));
     }
   });
 
   const upload = multer({
     storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
     fileFilter: (req, file, cb) => {
       const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
       if (!allowedTypes.includes(file.mimetype)) {
-        cb(new Error("Ungültiger Dateityp"));
+        cb(new Error("Ungültiger Dateityp. Erlaubt sind nur JPG, PNG und GIF."));
         return;
       }
       cb(null, true);
@@ -274,20 +292,23 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ error: "Keine Datei hochgeladen" });
       }
 
+      // Use absolute URL for logo
       const logoUrl = `/uploads/${req.file.filename}`;
       const existingSettings = await db.query.companySettings.findFirst();
 
-      if (existingSettings) {
+      if (existingSettings?.logoUrl) {
         // Delete old logo if exists
-        if (existingSettings.logoUrl) {
-          const oldLogoPath = path.join(".", existingSettings.logoUrl);
-          try {
-            await fs.unlink(oldLogoPath);
-          } catch (error) {
-            console.error("Error deleting old logo:", error);
-          }
+        try {
+          const oldLogoPath = path.join(process.cwd(), existingSettings.logoUrl);
+          await fs.access(oldLogoPath);
+          await fs.unlink(oldLogoPath);
+        } catch (error) {
+          console.error("Error deleting old logo:", error);
         }
+      }
 
+      // Update or create settings
+      if (existingSettings) {
         await db.update(companySettings)
           .set({
             logoUrl,
@@ -298,16 +319,28 @@ export function registerRoutes(app: Express) {
         await db.insert(companySettings).values({
           logoUrl,
           companyName: "",
-          email: "",
+          email: "admin@nextmove.de",
           phone: "",
           address: "",
           updatedAt: new Date(),
         });
       }
 
-      res.json({ logoUrl });
+      // Verify the file exists after saving
+      try {
+        await fs.access(path.join(process.cwd(), logoUrl));
+        res.json({ 
+          logoUrl,
+          message: "Logo erfolgreich hochgeladen"
+        });
+      } catch (error) {
+        throw new Error("Logo konnte nicht gespeichert werden");
+      }
     } catch (error) {
-      res.status(500).json({ error: "Fehler beim Hochladen des Logos" });
+      console.error("Logo upload error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Fehler beim Hochladen des Logos"
+      });
     }
   });
 }
