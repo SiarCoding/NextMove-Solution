@@ -217,7 +217,13 @@ export function registerRoutes(app: Express) {
   // Settings Routes
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     const settings = await db.query.companySettings.findFirst();
-    res.json(settings || {});
+    res.json(settings || {
+      companyName: "",
+      email: "admin@nextmove.de",
+      phone: "",
+      address: "",
+      logoUrl: ""
+    });
   });
 
   app.post("/api/admin/settings", requireAdmin, async (req, res) => {

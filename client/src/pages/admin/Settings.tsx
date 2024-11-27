@@ -32,10 +32,12 @@ export default function Settings() {
         credentials: 'include'
       });
       if (!res.ok) throw new Error("Failed to fetch settings");
-      return res.json();
+      const data = await res.json();
+      console.log("Settings fetched:", data);
+      return data;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 0,
+    staleTime: 0
   });
 
   const form = useForm<z.infer<typeof companySettingsSchema>>({
