@@ -143,7 +143,27 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
     return <div>Lade...</div>;
   }
 
-  return user && isAdmin ? <>{children}</> : null;
+  if (!user) {
+    return <div className="flex items-center justify-center h-screen bg-background">
+      <div className="text-center space-y-4">
+        <h2 className="text-2xl font-bold text-foreground">Zugriff verweigert</h2>
+        <p className="text-muted-foreground">Bitte melden Sie sich an, um fortzufahren.</p>
+      </div>
+    </div>;
+  }
+
+  if (!isAdmin) {
+    return <div className="flex items-center justify-center h-screen bg-background">
+      <div className="text-center space-y-4">
+        <h2 className="text-2xl font-bold text-destructive">Kein Administratorzugriff</h2>
+        <p className="text-muted-foreground">
+          Sie haben keine Berechtigung, auf den Administratorbereich zuzugreifen.
+        </p>
+      </div>
+    </div>;
+  }
+
+  return <>{children}</>;
 }
 
 export const useAuth = () => useContext(AuthContext);

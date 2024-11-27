@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { createServer } from "http";
 import cors from "cors";
-import expressSession from "express-session";
+import session from "express-session";
 import path from "path";
 
 function log(message: string) {
@@ -26,7 +26,7 @@ app.use(cors({
 }));
 
 // Session configuration
-app.use(expressSession({
+app.use(session({
   secret: process.env.SESSION_SECRET || "your-secret-key",
   resave: false,
   saveUninitialized: false,

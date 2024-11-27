@@ -96,10 +96,12 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
-      if (!user.isApproved && user.role === "customer") {
+      // Check if customer account is approved
+      if (user.role === "customer" && !user.isApproved) {
         return res.status(403).json({ error: "Account noch nicht freigegeben" });
       }
 
+      // Store user session
       req.session.userId = user.id;
 
       // Update last active
