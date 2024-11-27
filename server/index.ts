@@ -27,15 +27,14 @@ app.use(cors({
 
 // Session configuration
 app.use(session({
-  secret: "your-secret-key",
-  resave: true,
-  saveUninitialized: true,
+  secret: process.env.SESSION_SECRET || "your-secret-key",
+  resave: false,
+  saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: "lax",
-    path: "/"
+    sameSite: "lax"
   }
 }));
 
