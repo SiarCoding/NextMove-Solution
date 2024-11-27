@@ -1,0 +1,79 @@
+ ERROR(TypeScript)  This expression is not callable.
+  Type 'typeof import("express-session")' has no call signatures.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/index.ts:29:9
+
+    27 |
+    28 | // Session configuration
+  > 29 | app.use(session({
+       |         ^^^^^^^
+    30 |   secret: process.env.SESSION_SECRET || "your-secret-key",
+    31 |   resave: false,
+    32 |   saveUninitialized: false,
+
+ ERROR(TypeScript)  Property 'userId' does not exist on type 'Session & Partial<SessionData>'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:22:20
+
+    20 | // Middleware to check if user is authenticated
+    21 | const requireAuth = async (req: Request, res: Response, next: Function) => {
+  > 22 |   if (!req.session.userId) {
+       |                    ^^^^^^
+    23 |     return res.status(401).json({ error: "Nicht authentifiziert" });
+    24 |   }
+    25 |   next();
+
+ ERROR(TypeScript)  Property 'userId' does not exist on type 'Session & Partial<SessionData>'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:30:20
+
+    28 | // Middleware to check if user is admin
+    29 | const requireAdmin = async (req: Request, res: Response, next: Function) => {
+  > 30 |   if (!req.session.userId) {
+       |                    ^^^^^^
+    31 |     return res.status(401).json({ error: "Nicht authentifiziert" });
+    32 |   }
+    33 |
+
+ ERROR(TypeScript)  Property 'userId' does not exist on type 'Session & Partial<SessionData>'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:35:37
+
+    33 |
+    34 |   const user = await db.query.users.findFirst({
+  > 35 |     where: eq(users.id, req.session.userId)
+       |                                     ^^^^^^
+    36 |   });
+    37 |
+    38 |   if (!user || user.role !== "admin") {
+
+ ERROR(TypeScript)  Property 'userId' does not exist on type 'Session & Partial<SessionData>'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:103:19
+
+    101 |       }
+    102 |
+  > 103 |       req.session.userId = user.id;
+        |                   ^^^^^^
+    104 |
+    105 |       // Update last active
+    106 |       await db.update(users)
+
+ ERROR(TypeScript)  Property 'userId' does not exist on type 'Session & Partial<SessionData>'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:128:24
+
+    126 |   app.get("/api/auth/session", async (req, res) => {
+    127 |     try {
+  > 128 |       if (!req.session.userId) {
+        |                        ^^^^^^
+    129 |         return res.status(401).json({ error: "Nicht authentifiziert" });
+    130 |       }
+    131 |
+
+ ERROR(TypeScript)  Property 'userId' does not exist on type 'Session & Partial<SessionData>'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:133:41
+
+    131 |
+    132 |       const user = await db.query.users.findFirst({
+  > 133 |         where: eq(users.id, req.session.userId)
+        |                                         ^^^^^^
+    134 |       });
+    135 |
+    136 |       if (!user) {
+
+[TypeScript] Found 7 errors. Watching for file changes.
