@@ -1,0 +1,35 @@
+> rest-express@1.0.0 dev
+> tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts
+
+Uploads directory exists
+Uploads directory permissions: { mode: 16877, uid: 1000, gid: 1000 }
+09:35:18 AM [express] serving on port 5000
+09:35:23 AM [express] GET /api/auth/session 401 in 4ms :: {"error":"Nicht authentifiziert"}
+09:35:23 AM [express] GET /api/auth/session 401 in 2ms :: {"error":"Nicht authentifiziert"}
+
+ ERROR(TypeScript)  Cannot find name 'settings'. Did you mean 'Settings'?
+ FILE  /home/runner/Kundenportal-Entwicklung/client/src/components/layout/CustomerLayout.tsx:122:18
+
+    120 |             <div>
+    121 |               <h1 className="text-xl font-bold text-primary">
+  > 122 |                 {settings?.companyName || "Kundenportal"}
+9:35:38 AM [vite] hmr update /src/components/layout/CustomerLayout.tsx, /src/index.css
+
+[TypeScript] Found 0 errors. Watching for file changes.
+09:35:42 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:42 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:53 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:53 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:54 AM [express] GET /api/auth/session 401 in 3ms :: {"error":"Nicht authentifiziert"}
+09:35:54 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:55 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:55 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:56 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:35:57 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+09:36:01 AM [express] POST /api/auth/login 200 in 511ms :: {"user":{"id":3,"email":"admin@nextmove.de…
+09:36:01 AM [express] GET /api/callbacks/pending 200 in 9ms
+09:36:02 AM [express] GET /api/admin/settings 304 in 351ms :: {"id":1,"companyName":"Nextmove","email…
+09:36:02 AM [express] GET /api/admin/stats 304 in 363ms :: {"pendingApprovals":1,"activeUsers":2,"tot…
+09:36:04 AM [express] GET /api/admin/settings 304 in 135ms :: {"id":1,"companyName":"Nextmove","email…
+09:36:10 AM [express] POST /api/admin/settings 200 in 275ms :: {"message":"Einstellungen aktualisiert…
+09:36:10 AM [express] GET /api/admin/settings 200 in 135ms :: {"id":1,"companyName":"Nextmove","email…

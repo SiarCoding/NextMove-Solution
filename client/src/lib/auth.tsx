@@ -34,6 +34,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           credentials: 'include'
         });
         
+        const data = await res.json();
+        
         if (!res.ok) {
           if (retryCount < 3 && res.status === 401) {
             // Retry after 1 second for 401 errors
@@ -41,10 +43,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             return checkSession(retryCount + 1);
           }
-          throw new Error(res.statusText);
+          throw new Error(data.error || res.statusText);
         }
         
-        const data = await res.json();
         if (data.user) {
           setUser(data.user);
           localStorage.setItem("cachedUser", JSON.stringify(data.user));
@@ -54,18 +55,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } catch (error) {
         console.error("Session check failed:", error);
-        
-        // Try to use cached user data if available
-        const cachedUser = localStorage.getItem("cachedUser");
-        if (cachedUser) {
-          try {
-            const userData = JSON.parse(cachedUser);
-            setUser(userData);
-          } catch (e) {
-            console.error("Failed to parse cached user data:", e);
-            localStorage.removeItem("cachedUser");
-          }
-        }
+        setUser(null);
+        localStorage.removeItem("cachedUser");
       } finally {
         setIsLoading(false);
       }

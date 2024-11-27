@@ -313,9 +313,10 @@ export function registerRoutes(app: Express) {
       }
 
       const filename = req.file.filename;
+      // Store complete URL path
       const logoUrl = `/uploads/${filename}`;
 
-      // Update admin user first
+      // Update admin user first to ensure profile_image is set
       await db.update(users)
         .set({ profileImage: logoUrl })
         .where(eq(users.email, "admin@nextmove.de"));
@@ -331,6 +332,7 @@ export function registerRoutes(app: Express) {
           .where(eq(companySettings.id, existingSettings.id));
       }
 
+      // Return complete URL in response
       res.json({ 
         logoUrl,
         message: "Logo erfolgreich hochgeladen"
