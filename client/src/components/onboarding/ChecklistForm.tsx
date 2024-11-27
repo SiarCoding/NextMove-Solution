@@ -87,6 +87,7 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {/* Payment Information Column */}
         <div className="grid grid-cols-2 gap-8">
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-white">

@@ -29,8 +29,10 @@ export default function OnboardingWizard() {
   const handleComplete = async () => {
     try {
       setCurrentStep(currentStep + 1);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      window.location.href = "/dashboard";
+      // Wait for state updates to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      // Use navigate instead of window.location
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       console.error("Navigation error:", error);
     }
