@@ -22,6 +22,11 @@ export const users = pgTable("users", {
   profileImage: text("profile_image"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastActive: timestamp("last_active"),
+  assignedAdmin: text("assigned_admin").notNull().default("admin@nextmove.de"),
+  onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+  currentPhase: text("current_phase").default("Checkliste").notNull(),
+  completedPhases: jsonb("completed_phases").default([]).notNull(),
+  progress: integer("progress").default(0).notNull(),
 });
 
 export const tutorials = pgTable("tutorials", {

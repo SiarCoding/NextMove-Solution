@@ -67,7 +67,8 @@ export function registerRoutes(app: Express) {
           password: hashedPassword,
           firstName,
           lastName,
-          role: "customer"
+          role: "customer",
+          assignedAdmin: "admin@nextmove.de"
         })
         .returning();
 
@@ -196,28 +197,16 @@ export function registerRoutes(app: Express) {
           lastName: true,
           email: true,
           createdAt: true,
-          lastActive: true
+          lastActive: true,
+          progress: true,
+          currentPhase: true,
+          completedPhases: true,
+          onboardingCompleted: true,
+          assignedAdmin: true
         }
       });
 
-      const enrichedCustomers = await Promise.all(customers.map(async (customer) => {
-        const progress = await db.query.userProgress.findFirst({
-          where: eq(users.id, customer.id)
-        });
-
-        const checklist = await db.query.checklist.findFirst({
-          where: eq(users.id, customer.id)
-        });
-
-        return {
-          ...customer,
-          progress: progress?.progress || 0,
-          currentPhase: progress?.currentPhase || "Checkliste",
-          completedPhases: progress?.completedPhases || []
-        };
-      }));
-
-      res.json(enrichedCustomers);
+      res.json(customers);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Failed to fetch customer tracking" });
@@ -228,35 +217,15 @@ export function registerRoutes(app: Express) {
     try {
       const { userId } = req.session;
       
-      // Save checklist
-      await db.insert(checklist).values({
-        ...req.body,
-        userId,
-        updatedAt: new Date()
-      });
-
-      // Update progress
-      const progress = await db.query.userProgress.findFirst({
-        where: eq(users.id, userId)
-      });
-
-      if (progress) {
-        await db.update(userProgress)
-          .set({ 
-            progress: progress.progress + 20,
-            currentPhase: "Landingpage",
-            completedPhases: [...progress.completedPhases, "Checkliste"],
-            updatedAt: new Date()
-          })
-          .where(eq(userProgress.userId, userId));
-      } else {
-        await db.insert(userProgress).values({
-          userId,
+      // Update user progress
+      await db.update(users)
+        .set({ 
           progress: 20,
           currentPhase: "Landingpage",
-          completedPhases: ["Checkliste"]
-        });
-      }
+          completedPhases: ["Checkliste"],
+          onboardingCompleted: false
+        })
+        .where(eq(users.id, userId));
 
       res.json({ success: true });
     } catch (error) {
