@@ -28,10 +28,10 @@ export default function OnboardingWizard() {
 
   const handleComplete = async () => {
     try {
-      setCurrentStep(currentStep + 1);
       // Wait for the backend to process
       await new Promise(resolve => setTimeout(resolve, 500));
       navigate("/dashboard", { replace: true });
+      window.location.reload(); // Force reload to clear onboarding state
     } catch (error) {
       console.error("Navigation error:", error);
     }
