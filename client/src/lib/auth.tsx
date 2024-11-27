@@ -4,7 +4,7 @@ import type { User } from "@db/schema";
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, portal: "admin" | "customer") => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
   isAdmin: boolean;
@@ -38,7 +38,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         if (!res.ok) {
           if (retryCount < 3 && res.status === 401) {
-            // Retry after 1 second for 401 errors
             console.log(`Retrying session check (${retryCount + 1}/3)...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
             return checkSession(retryCount + 1);
@@ -64,17 +63,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     checkSession();
 
-    // Set up periodic session check every 2 minutes
     const intervalId = setInterval(checkSession, 2 * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, portal: "admin" | "customer") => {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, portal }),
       credentials: 'include'
     });
 
@@ -86,7 +84,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const data = await res.json();
     setUser(data.user);
     
-    // Wait for session to be fully established
     await new Promise(resolve => setTimeout(resolve, 500));
     
     localStorage.setItem("cachedUser", JSON.stringify(data.user));

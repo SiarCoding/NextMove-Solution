@@ -38,7 +38,7 @@ export default function AdminLogin() {
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     try {
       setIsLoading(true);
-      await login(values.email, values.password);
+      await login(values.email, values.password, "admin");
       navigate("/admin");
     } catch (error) {
       toast({

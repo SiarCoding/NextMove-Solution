@@ -80,7 +80,7 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, portal = "customer" } = req.body;
 
       const user = await db.query.users.findFirst({
         where: eq(users.email, email)
@@ -96,15 +96,22 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
+      // Check portal access
+      if (portal === "customer" && user.role === "admin") {
+        return res.status(403).json({ error: "Administratoren müssen sich über das Adminportal anmelden" });
+      }
+
+      if (portal === "admin" && user.role !== "admin") {
+        return res.status(403).json({ error: "Keine Administratorberechtigung" });
+      }
+
       // Check if customer account is approved
       if (user.role === "customer" && !user.isApproved) {
         return res.status(403).json({ error: "Account noch nicht freigegeben" });
       }
 
-      // Store user session
       req.session.userId = user.id;
-
-      // Update last active
+      
       await db.update(users)
         .set({ lastActive: new Date() })
         .where(eq(users.id, user.id));
