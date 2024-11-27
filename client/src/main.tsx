@@ -16,6 +16,7 @@ import UserApproval from "./pages/admin/UserApproval";
 import ContentManagement from "./pages/admin/ContentManagement";
 import Settings from "./pages/admin/Settings";
 import Customers from "./pages/admin/Customers";
+import Tracking from "./pages/admin/Tracking";
 
 // Auth Provider
 import { AuthProvider, RequireAuth, RequireAdmin } from "./lib/auth.tsx";
@@ -54,6 +55,11 @@ function Router() {
       <Route path="/admin/settings">
         <RequireAdmin>
           <Settings />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/tracking">
+        <RequireAdmin>
+          <Tracking />
         </RequireAdmin>
       </Route>
       <Route>404 - Seite nicht gefunden</Route>

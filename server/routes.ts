@@ -192,8 +192,9 @@ export function registerRoutes(app: Express) {
   app.get("/api/admin/customers/tracking", requireAdmin, async (req, res) => {
     try {
       // Get the admin's email
+      const userId = req.session.userId as number;
       const adminUser = await db.query.users.findFirst({
-        where: eq(users.id, req.session.userId)
+        where: eq(users.id, userId)
       });
 
       if (!adminUser) {

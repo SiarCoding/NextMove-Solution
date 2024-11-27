@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type User } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import AdminLayout from "../../components/layout/AdminLayout";
 import {
@@ -146,7 +147,7 @@ export default function AdminDashboard() {
         <div className="mt-8">
           <h2 className="text-lg font-semibold mb-4">Ausstehende Freigaben</h2>
           <div className="bg-card rounded-lg border shadow-sm">
-            {pendingUsers?.map((user) => (
+            {pendingUsers?.map((user: User) => (
               <div key={user.id} className="p-4 border-b last:border-b-0 flex justify-between items-center">
                 <div>
                   <p className="font-medium">{user.firstName} {user.lastName}</p>

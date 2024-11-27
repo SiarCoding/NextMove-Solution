@@ -1,0 +1,31 @@
+ ERROR(TypeScript)  Parameter 'user' implicitly has an 'any' type.
+ FILE  /home/runner/Kundenportal-Entwicklung/client/src/pages/admin/Dashboard.tsx:149:33
+
+    147 |           <h2 className="text-lg font-semibold mb-4">Ausstehende Freigaben</h2>
+    148 |           <div className="bg-card rounded-lg border shadow-sm">
+  > 149 |             {pendingUsers?.map((user) => (
+        |                                 ^^^^
+    150 |               <div key={user.id} className="p-4 border-b last:border-b-0 flex justify-between items-center">
+    151 |                 <div>
+    152 |                   <p className="font-medium">{user.firstName} {user.lastName}</p>
+
+ ERROR(TypeScript)  No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: number | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'number | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<number | undefined>, right: number | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<number | undefined>'.
+      Type 'PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<number | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "users"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+ FILE  /home/runner/Kundenportal-Entwicklung/server/routes.ts:196:16
+
+    194 |       // Get the admin's email
+    195 |       const adminUser = await db.query.users.findFirst({
+  > 196 |         where: eq(users.id, req.session.userId)
+        |                ^^
+    197 |       });
+    198 |
+    199 |       if (!adminUser) {
+
+[TypeScript] Found 2 errors. Watching for file changes.
