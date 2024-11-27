@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle } from "lucide-react";
+import { useLocation } from "wouter";
 import ChecklistForm from "./ChecklistForm";
 
 const steps = [
@@ -23,6 +24,15 @@ export default function OnboardingWizard() {
   const [currentStep, setCurrentStep] = useState(0);
   const progress = (currentStep / (steps.length - 1)) * 100;
 
+  const [, navigate] = useLocation();
+
+  const handleComplete = async () => {
+    setCurrentStep(currentStep + 1);
+    // Wait for a moment to show completion
+    await new Promise(resolve => setTimeout(resolve, 500));
+    navigate("/dashboard");
+  };
+
   return (
     <div className="fixed inset-0 bg-[#1a1b1e] z-50">
       <div className="container max-w-2xl mx-auto h-screen flex items-center">
@@ -38,7 +48,7 @@ export default function OnboardingWizard() {
                 <span className="text-gray-400">Fortschritt</span>
                 <span className="text-orange-500">{Math.round(progress)}%</span>
               </div>
-              <Progress value={progress} className="h-2 bg-gray-800" indicatorClassName="bg-orange-500" />
+              <Progress value={progress} className="h-2 bg-gray-800" />
               
               <div className="flex justify-between mt-2">
                 {steps.map((step, index) => (
@@ -68,11 +78,7 @@ export default function OnboardingWizard() {
             )}
 
             {currentStep === 2 && (
-              <ChecklistForm onComplete={() => {
-                setCurrentStep(currentStep + 1);
-                // Redirect to dashboard after completion
-                window.location.href = '/dashboard';
-              }} />
+              <ChecklistForm onComplete={handleComplete} />
             )}
 
             <div className="flex justify-between pt-4">

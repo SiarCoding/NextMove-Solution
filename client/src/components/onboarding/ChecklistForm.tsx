@@ -70,6 +70,9 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
       });
 
       if (!res.ok) throw new Error();
+      
+      // Wait for the backend to process
+      await new Promise(resolve => setTimeout(resolve, 500));
       onComplete();
     } catch (error) {
       console.error(error);

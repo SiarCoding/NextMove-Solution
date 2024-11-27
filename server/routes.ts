@@ -236,10 +236,10 @@ export function registerRoutes(app: Express) {
       // Update user progress
       await db.update(users)
         .set({ 
-          progress: 20,
-          currentPhase: "Landingpage",
-          completedPhases: ["Checkliste"],
-          onboardingCompleted: false
+          progress: 100,
+          currentPhase: "Completed",
+          completedPhases: ["Checkliste", "Onboarding"],
+          onboardingCompleted: true
         })
         .where(eq(users.id, userId));
 
