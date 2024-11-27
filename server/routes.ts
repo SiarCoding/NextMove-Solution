@@ -193,14 +193,26 @@ export function registerRoutes(app: Express) {
     res.json(newReferral[0]);
   });
 
-  // Ensure uploads directory exists
+  // Ensure uploads directory exists with proper permissions
   const uploadsDir = path.join(process.cwd(), "uploads");
   (async () => {
     try {
       await fs.access(uploadsDir);
+      console.log("Uploads directory exists");
     } catch {
+      console.log("Creating uploads directory");
       await fs.mkdir(uploadsDir, { recursive: true });
+      // Ensure directory has proper permissions (755)
+      await fs.chmod(uploadsDir, 0o755);
     }
+    
+    // Verify directory permissions
+    const stats = await fs.stat(uploadsDir);
+    console.log("Uploads directory permissions:", {
+      mode: stats.mode,
+      uid: stats.uid,
+      gid: stats.gid
+    });
   })();
 
   // Configure multer for logo uploads
@@ -292,7 +304,7 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ error: "Keine Datei hochgeladen" });
       }
 
-      // Validate file and generate absolute URL
+      // Validate file and generate URL
       const filename = req.file.filename;
       const absolutePath = path.join(process.cwd(), "uploads", filename);
       const logoUrl = `/uploads/${filename}`;
@@ -300,8 +312,24 @@ export function registerRoutes(app: Express) {
       console.log("Logo Upload - Processing:", {
         filename,
         absolutePath,
-        logoUrl
+        logoUrl,
+        mimeType: req.file.mimetype,
+        fileSize: req.file.size
       });
+
+      // Validate file exists and is accessible
+      try {
+        const stats = await fs.stat(absolutePath);
+        console.log("Logo Upload - File stats:", {
+          size: stats.size,
+          permissions: stats.mode,
+          created: stats.birthtime,
+          modified: stats.mtime
+        });
+      } catch (error) {
+        console.error("Logo Upload - File validation error:", error);
+        throw new Error("Uploaded file validation failed");
+      }
 
       // Verify uploaded file exists
       try {

@@ -37,7 +37,7 @@ export default function Settings() {
       return data;
     },
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
     retry: 3,
     retryDelay: 1000
   });

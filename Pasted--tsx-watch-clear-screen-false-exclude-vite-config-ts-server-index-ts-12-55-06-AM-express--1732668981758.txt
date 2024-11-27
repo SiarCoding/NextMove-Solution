@@ -1,0 +1,39 @@
+> tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts
+
+12:55:06 AM [express] serving on port 5000
+12:55:09 AM [express] GET /api/auth/session 401 in 5ms :: {"error":"Nicht authentifiziert"}
+12:55:09 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+
+ ERROR(TypeScript)  No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<any, Error>', gave the following error.
+    Object literal may only specify known properties, and 'cacheTime' does not exist in type 'DefinedInitialDataOptions<any, Error, any, string[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Object literal may only specify known properties, and 'cacheTime' does not exist in type 'UndefinedInitialDataOptions<any, Error, any, string[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<any, Error, any, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<any, Error>', gave the following error.
+    Object literal may only specify known properties, and 'cacheTime' does not exist in type 'UseQueryOptions<any, Error, any, string[]>'.
+ FILE  /home/runner/Kundenportal-Entwicklung/client/src/pages/admin/Settings.tsx:40:5
+
+    38 |     },
+    39 |     staleTime: 0,
+  > 40 |     cacheTime: 0,
+       |     ^^^^^^^^^
+    41 |     retry: 3,
+    42 |     retryDelay: 1000
+    43 |   });
+
+[TypeScript] Found 1 error. Watching for file changes.
+12:55:21 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+12:55:21 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+12:55:22 AM [express] GET /api/auth/session 401 in 0ms :: {"error":"Nicht authentifiziert"}
+12:55:22 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+12:55:23 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+12:55:23 AM [express] GET /api/auth/session 401 in 1ms :: {"error":"Nicht authentifiziert"}
+12:55:24 AM [express] GET /api/auth/session 401 in 0ms :: {"error":"Nicht authentifiziert"}
+12:55:25 AM [express] GET /api/auth/session 401 in 0ms :: {"error":"Nicht authentifiziert"}
+12:55:47 AM [express] POST /api/auth/login 200 in 379ms :: {"user":{"id":3,"email":"admin@nextmove.de…
+12:55:48 AM [express] GET /api/callbacks/pending 200 in 5ms
+12:55:48 AM [express] GET /api/admin/settings 304 in 134ms :: {"id":1,"companyName":"Nextmove","email…
+12:55:49 AM [express] GET /api/admin/stats 304 in 590ms :: {"pendingApprovals":1,"activeUsers":2,"tot…
+12:55:54 AM [express] GET /api/admin/settings 304 in 135ms :: {"id":1,"companyName":"Nextmove","email…
+12:56:00 AM [express] POST /api/admin/settings 200 in 208ms :: {"message":"Einstellungen aktualisiert…
+12:56:00 AM [express] GET /api/admin/settings 200 in 134ms :: {"id":1,"companyName":"Nextmove","email…
