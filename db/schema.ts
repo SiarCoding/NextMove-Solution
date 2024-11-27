@@ -2,13 +2,21 @@ import { pgTable, text, integer, timestamp, boolean, jsonb } from "drizzle-orm/p
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const companies = pgTable("companies", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull(),
+  adminId: integer("admin_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const users = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   email: text("email").unique().notNull(),
   password: text("password").notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
-  companyName: text("company_name"),
+  companyId: integer("company_id").references(() => companies.id),
   role: text("role").default("customer").notNull(),
   isApproved: boolean("is_approved").default(false).notNull(),
   profileImage: text("profile_image"),

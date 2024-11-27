@@ -122,7 +122,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 {adminUser?.companyName || "Kundenportal"}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {user?.companyName}
+                {adminUser?.companyName}
               </p>
             </div>
           </div>

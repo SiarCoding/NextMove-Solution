@@ -1,23 +1,33 @@
-import type { Express, Request, Response, NextFunction } from "express";
-import { db } from "../db";
-import { users, tutorials, userProgress, metrics, referrals, callbacks, companySettings } from "@db/schema";
+import { type Express, type Request, type Response } from "express";
+import bcrypt from "bcryptjs";
+import { and, eq, desc, gte } from "drizzle-orm";
+import { db } from "db";
+import {
+  users,
+  tutorials,
+  userProgress,
+  metrics,
+  referrals,
+  callbacks,
+  companySettings,
+  companies,
+  type User
+} from "@db/schema";
+import { uploadFile } from "./upload";
 import multer from "multer";
 import path from "path";
-import fs from "fs/promises";
-import { eq, and } from "drizzle-orm";
-import bcrypt from "bcrypt";
-import { z } from "zod";
-import session from "express-session";
 
-declare module "express-session" {
-  interface SessionData {
-    userId: number;
+// Middleware to check if user is authenticated
+const requireAuth = async (req: Request, res: Response, next: Function) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Nicht authentifiziert" });
   }
-}
+  next();
+};
 
-// Admin middleware
-async function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.session?.userId) {
+// Middleware to check if user is admin
+const requireAdmin = async (req: Request, res: Response, next: Function) => {
+  if (!req.session.userId) {
     return res.status(401).json({ error: "Nicht authentifiziert" });
   }
 
@@ -26,349 +36,391 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   });
 
   if (!user || user.role !== "admin") {
-    return res.status(403).json({ error: "Keine Administratorrechte" });
+    return res.status(403).json({ error: "Keine Berechtigung" });
   }
 
   next();
-}
+};
 
 export function registerRoutes(app: Express) {
-  // Configure session middleware
-  app.use(session({
-    secret: "your-secret-key",
-    resave: true,
-    saveUninitialized: true,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-      sameSite: "lax",
-      path: "/"
-    }
-  }));
+  // Auth routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, companyName } = req.body;
 
-  // Auth Routes
+      // Check if user already exists
+      const existingUser = await db.query.users.findFirst({
+        where: eq(users.email, email)
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: "E-Mail bereits registriert" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const [user] = await db.insert(users)
+        .values({
+          email,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          companyName,
+          role: "customer"
+        })
+        .returning();
+
+      res.status(201).json({ message: "Registrierung erfolgreich" });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Registrierung fehlgeschlagen" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
-    const { email, password } = req.body;
-    
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email)
-    });
+    try {
+      const { email, password } = req.body;
 
-    if (!user || !await bcrypt.compare(password, user.password)) {
-      return res.status(401).json({ error: "Ungültige Anmeldedaten" });
+      const user = await db.query.users.findFirst({
+        where: eq(users.email, email)
+      });
+
+      if (!user) {
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (!isMatch) {
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
+      }
+
+      if (!user.isApproved && user.role === "customer") {
+        return res.status(403).json({ error: "Account noch nicht freigegeben" });
+      }
+
+      req.session.userId = user.id;
+
+      // Update last active
+      await db.update(users)
+        .set({ lastActive: new Date() })
+        .where(eq(users.id, user.id));
+
+      res.json({ user: { ...user, password: undefined } });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Anmeldung fehlgeschlagen" });
     }
-
-    if (!user.isApproved && user.role === "customer") {
-      return res.status(403).json({ error: "Account wartet auf Freigabe" });
-    }
-
-    req.session.userId = user.id;
-    await new Promise<void>((resolve) => req.session!.save(() => resolve()));
-
-    res.json({ user: { ...user, password: undefined } });
   });
 
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) {
-        return res.status(500).json({ error: "Fehler beim Abmelden" });
+        return res.status(500).json({ error: "Abmeldung fehlgeschlagen" });
       }
       res.json({ message: "Erfolgreich abgemeldet" });
     });
   });
 
   app.get("/api/auth/session", async (req, res) => {
-    if (!req.session?.userId) {
-      return res.status(401).json({ error: "Nicht authentifiziert" });
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Nicht authentifiziert" });
+      }
+
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, req.session.userId)
+      });
+
+      if (!user) {
+        return res.status(401).json({ error: "Nicht authentifiziert" });
+      }
+
+      res.json({ user: { ...user, password: undefined } });
+    } catch (error) {
+      console.error("Session check error:", error);
+      res.status(500).json({ error: "Sitzungsprüfung fehlgeschlagen" });
     }
-
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, req.session.userId)
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: "Benutzer nicht gefunden" });
-    }
-
-    res.json({ user: { ...user, password: undefined } });
   });
 
-  app.post("/api/auth/register", async (req, res) => {
-    const schema = z.object({
-      email: z.string().email(),
-      password: z.string().min(8),
-      firstName: z.string(),
-      lastName: z.string(),
-      companyName: z.string().optional(),
-    });
-
-    const data = schema.parse(req.body);
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-
-    const newUser = await db.insert(users).values({
-      ...data,
-      password: hashedPassword,
-      role: "customer",
-    }).returning();
-
-    res.json({ message: "Registrierung erfolgreich" });
-  });
-
-  // Admin Routes
-  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
-    const [pendingApprovals, activeUsers, totalTutorials] = await Promise.all([
-      db.query.users.findMany({
+  // User approval routes
+  app.get("/api/admin/users/pending", requireAdmin, async (req, res) => {
+    try {
+      const pendingUsers = await db.query.users.findMany({
         where: and(
           eq(users.role, "customer"),
           eq(users.isApproved, false)
         )
-      }).then(users => users.length),
-      db.query.users.findMany({
-        where: and(
-          eq(users.role, "customer"),
-          eq(users.isApproved, true)
-        )
-      }).then(users => users.length),
-      db.query.tutorials.findMany().then(tutorials => tutorials.length)
-    ]);
+      });
 
-    res.json({ pendingApprovals, activeUsers, totalTutorials });
+      res.json(pendingUsers.map(user => ({ ...user, password: undefined })));
+    } catch (error) {
+      console.error("Error fetching pending users:", error);
+      res.status(500).json({ error: "Failed to fetch pending users" });
+    }
   });
 
-  // User Routes
-  app.get("/api/users/pending", requireAdmin, async (req, res) => {
-    const pendingUsers = await db.query.users.findMany({
-      where: and(
-        eq(users.role, "customer"),
-        eq(users.isApproved, false)
-      )
-    });
-    res.json(pendingUsers);
-  });
-
-  app.post("/api/users/:id/approve", requireAdmin, async (req, res) => {
-    const { id } = req.params;
-    await db.update(users)
-      .set({ isApproved: true })
-      .where(eq(users.id, parseInt(id)));
-    res.json({ message: "Benutzer freigegeben" });
-  });
-
-  // Tutorial Routes
-  app.post("/api/tutorials", requireAdmin, async (req, res) => {
-    const newTutorial = await db.insert(tutorials).values(req.body).returning();
-    res.json(newTutorial[0]);
-  });
-
-  app.get("/api/tutorials", async (req, res) => {
-    const allTutorials = await db.query.tutorials.findMany();
-    res.json(allTutorials);
-  });
-
-  // Metrics Routes
-  app.get("/api/metrics/:userId", async (req, res) => {
-    const { userId } = req.params;
-    const userMetrics = await db.query.metrics.findMany({
-      where: eq(metrics.userId, parseInt(userId))
-    });
-    res.json(userMetrics);
-  });
-
-  // Callback Routes
-  app.post("/api/callbacks", async (req, res) => {
-    const newCallback = await db.insert(callbacks).values(req.body).returning();
-    res.json(newCallback[0]);
-  });
-
-  // Progress Routes
-  app.post("/api/progress", async (req, res) => {
-    const progress = await db.insert(userProgress).values(req.body).returning();
-    res.json(progress[0]);
-  });
-
-  // Referral Routes
-  app.post("/api/referrals", async (req, res) => {
-    const newReferral = await db.insert(referrals).values(req.body).returning();
-    res.json(newReferral[0]);
-  });
-
-  // Ensure uploads directory exists with proper permissions
-  const uploadsDir = path.join(process.cwd(), "uploads");
-  (async () => {
+  app.post("/api/admin/users/:id/approve", requireAdmin, async (req, res) => {
     try {
-      await fs.access(uploadsDir);
-      console.log("Uploads directory exists");
-    } catch {
-      console.log("Creating uploads directory");
-      await fs.mkdir(uploadsDir, { recursive: true });
-      // Ensure directory has proper permissions (755)
-      await fs.chmod(uploadsDir, 0o755);
-    }
-    
-    // Verify directory permissions
-    const stats = await fs.stat(uploadsDir);
-    console.log("Uploads directory permissions:", {
-      mode: stats.mode,
-      uid: stats.uid,
-      gid: stats.gid
-    });
-  })();
+      const { id } = req.params;
 
-  // Configure multer for logo uploads
-  const storage = multer.diskStorage({
-    destination: async (req, file, cb) => {
-      try {
-        await fs.access(uploadsDir);
-        cb(null, uploadsDir);
-      } catch (error) {
-        cb(error as Error, uploadsDir);
-      }
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
-      cb(null, "company-logo-" + uniqueSuffix + path.extname(file.originalname));
+      await db.update(users)
+        .set({ isApproved: true })
+        .where(eq(users.id, parseInt(id)));
+
+      res.json({ message: "User approved successfully" });
+    } catch (error) {
+      console.error("Error approving user:", error);
+      res.status(500).json({ error: "Failed to approve user" });
     }
   });
 
-  const upload = multer({
-    storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-    fileFilter: (req, file, cb) => {
-      const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
-      if (!allowedTypes.includes(file.mimetype)) {
-        cb(new Error("Ungültiger Dateityp. Erlaubt sind nur JPG, PNG und GIF."));
-        return;
-      }
-      cb(null, true);
-    }
-  });
-
-  // Settings Routes
+  // Admin settings routes
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
-    const settings = await db.query.companySettings.findFirst();
-    res.json(settings || {
-      companyName: "",
-      email: "admin@nextmove.de",
-      phone: "",
-      address: "",
-      logoUrl: ""
-    });
+    try {
+      const settings = await db.query.companySettings.findFirst({
+        orderBy: desc(companySettings.updatedAt)
+      });
+
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
   });
 
   app.post("/api/admin/settings", requireAdmin, async (req, res) => {
     try {
-      const schema = z.object({
-        companyName: z.string().min(1, "Firmenname ist erforderlich"),
-        email: z.string().email("Ungültige E-Mail-Adresse"),
-        phone: z.string().min(1, "Telefonnummer ist erforderlich"),
-        address: z.string().min(1, "Adresse ist erforderlich"),
+      const { companyName, email, phone, address } = req.body;
+
+      let existingSettings = await db.query.companySettings.findFirst({
+        orderBy: desc(companySettings.updatedAt)
       });
 
-      const validatedData = schema.parse(req.body);
-      
-      // Update company settings
-      const existingSettings = await db.query.companySettings.findFirst();
       if (existingSettings) {
         await db.update(companySettings)
           .set({
-            ...validatedData,
-            updatedAt: new Date(),
+            companyName,
+            email,
+            phone,
+            address,
+            updatedAt: new Date()
           })
           .where(eq(companySettings.id, existingSettings.id));
       } else {
-        await db.insert(companySettings).values({
-          ...validatedData,
-          updatedAt: new Date(),
-        });
+        [existingSettings] = await db.insert(companySettings)
+          .values({
+            companyName,
+            email,
+            phone,
+            address
+          })
+          .returning();
       }
 
       // Update admin user
       await db.update(users)
         .set({ 
-          companyName: validatedData.companyName 
+          companyId: existingSettings.id 
         })
         .where(eq(users.email, "admin@nextmove.de"));
 
-      res.json({ message: "Einstellungen aktualisiert", success: true });
+      res.json({ message: "Einstellungen aktualisiert" });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ 
-          error: "Validierungsfehler", 
-          details: error.errors 
-        });
-      } else {
-        console.error("Settings update error:", error);
-        res.status(500).json({ 
-          error: "Einstellungen konnten nicht gespeichert werden" 
-        });
+      console.error("Error updating settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // Logo upload route
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: "uploads/",
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
       }
+    }),
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+      if (!allowedTypes.includes(file.mimetype)) {
+        cb(new Error("Invalid file type"));
+        return;
+      }
+      cb(null, true);
+    },
+    limits: {
+      fileSize: 10 * 1024 * 1024 // 10MB
     }
   });
 
   app.post("/api/admin/logo", requireAdmin, upload.single("logo"), async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "Keine Datei hochgeladen" });
+        return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const filename = req.file.filename;
-      // Store complete URL path
-      const logoUrl = `/uploads/${filename}`;
+      const file = await uploadFile(req.file);
 
-      // First update admin user
-      const adminUser = await db.query.users.findFirst({
-        where: eq(users.email, "admin@nextmove.de")
+      let existingSettings = await db.query.companySettings.findFirst({
+        orderBy: desc(companySettings.updatedAt)
       });
 
-      if (adminUser) {
-        await db.update(users)
-          .set({ profileImage: logoUrl })
-          .where(eq(users.id, adminUser.id));
-      }
-
-      // Then update company settings
-      const existingSettings = await db.query.companySettings.findFirst();
       if (existingSettings) {
         await db.update(companySettings)
-          .set({ 
-            logoUrl,
+          .set({
+            logoUrl: file.url,
             updatedAt: new Date()
           })
           .where(eq(companySettings.id, existingSettings.id));
       }
 
-      // Ensure data is committed before responding
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Return complete URL in response
-      res.json({ 
-        logoUrl,
-        message: "Logo erfolgreich hochgeladen"
-      });
+      res.json({ logoUrl: file.url });
     } catch (error) {
-      console.error("Logo upload error:", error);
-      res.status(500).json({ error: "Fehler beim Logo-Upload" });
+      console.error("Error uploading logo:", error);
+      res.status(500).json({ error: "Failed to upload logo" });
     }
   });
 
-  app.get("/api/admin/profile", async (req, res) => {
+  // Admin profile route
+  app.get("/api/admin/profile", requireAdmin, async (req, res) => {
     try {
+      const settings = await db.query.companySettings.findFirst({
+        orderBy: desc(companySettings.updatedAt)
+      });
+
       const adminUser = await db.query.users.findFirst({
         where: eq(users.email, "admin@nextmove.de")
       });
-      
-      if (!adminUser) {
-        return res.status(404).json({ error: "Admin user not found" });
-      }
 
       res.json({ 
-        profileImage: adminUser.profileImage,
-        companyName: adminUser.companyName 
+        profileImage: adminUser?.profileImage,
+        companyName: settings?.companyName || "Admin Portal" 
       });
     } catch (error) {
       console.error("Error fetching admin profile:", error);
       res.status(500).json({ error: "Failed to fetch admin profile" });
+    }
+  });
+
+  // Multi-company customer management routes
+  app.get("/api/admin/customers", requireAdmin, async (req, res) => {
+    try {
+      const customers = await db.query.users.findMany({
+        where: eq(users.role, "customer"),
+        orderBy: (users, { desc }) => [desc(users.createdAt)]
+      });
+
+      const customersWithCompanies = await Promise.all(
+        customers.map(async (customer) => {
+          let companyName = "No Company";
+          if (customer.companyId) {
+            const company = await db.query.companies.findFirst({
+              where: eq(companies.id, customer.companyId)
+            });
+            if (company) {
+              companyName = company.name;
+            }
+          }
+          return {
+            ...customer,
+            companyName,
+            password: undefined
+          };
+        })
+      );
+
+      res.json(customersWithCompanies);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ error: "Failed to fetch customers" });
+    }
+  });
+
+  app.post("/api/admin/customers/:id/company", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { companyId } = req.body;
+
+      await db.update(users)
+        .set({ companyId })
+        .where(eq(users.id, parseInt(id)));
+
+      res.json({ message: "Customer company updated successfully" });
+    } catch (error) {
+      console.error("Error updating customer company:", error);
+      res.status(500).json({ error: "Failed to update customer company" });
+    }
+  });
+
+  app.post("/api/admin/companies", requireAdmin, async (req, res) => {
+    try {
+      const { name } = req.body;
+
+      const newCompany = await db.insert(companies)
+        .values({ name })
+        .returning();
+
+      res.json(newCompany[0]);
+    } catch (error) {
+      console.error("Error creating company:", error);
+      res.status(500).json({ error: "Failed to create company" });
+    }
+  });
+
+  app.get("/api/admin/companies", requireAdmin, async (req, res) => {
+    try {
+      const allCompanies = await db.query.companies.findMany({
+        orderBy: (companies, { desc }) => [desc(companies.createdAt)]
+      });
+
+      res.json(allCompanies);
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+      res.status(500).json({ error: "Failed to fetch companies" });
+    }
+  });
+
+  // Get admin dashboard stats
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    try {
+      const pendingApprovals = await db.query.users.findMany({
+        where: and(
+          eq(users.role, "customer"),
+          eq(users.isApproved, false)
+        )
+      });
+
+      const activeUsers = await db.query.users.findMany({
+        where: and(
+          eq(users.role, "customer"),
+          eq(users.isApproved, true),
+          gte(users.lastActive, new Date(Date.now() - 24 * 60 * 60 * 1000))
+        )
+      });
+
+      const totalCustomers = await db.query.users.findMany({
+        where: eq(users.role, "customer")
+      });
+
+      const completedOnboarding = await db.query.users.findMany({
+        where: and(
+          eq(users.role, "customer"),
+          eq(users.isApproved, true)
+        )
+      });
+
+      res.json({
+        pendingApprovals: pendingApprovals.length,
+        activeUsers: activeUsers.length,
+        totalCustomers: totalCustomers.length,
+        completedOnboarding: completedOnboarding.length
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ error: "Failed to fetch admin stats" });
     }
   });
 }

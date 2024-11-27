@@ -1,0 +1,128 @@
+const express = require('express');
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+// Neon.db Verbindung
+const pool = new Pool({
+    connectionString: process.env.NEON_DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
+// Middleware für Authentifizierung
+const authenticateCompany = async (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Keine Authentifizierung' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Überprüfe, ob Unternehmen existiert
+        const { rows } = await pool.query(
+            'SELECT id FROM companies WHERE id = $1', 
+            [decoded.companyId]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(401).json({ error: 'Ungültiges Unternehmen' });
+        }
+        
+        req.company = decoded;
+        next();
+    } catch (error) {
+        res.status(401).json({ error: 'Token ungültig' });
+    }
+};
+
+// Kundenregistrierung
+const registerCustomer = async (req, res) => {
+    const client = await pool.connect();
+    
+    try {
+        const { name, email, phone } = req.body;
+        const companyId = req.company.companyId;
+        
+        // Prüfe Kundenexistenz
+        const existingCustomer = await client.query(
+            'SELECT id FROM customers WHERE email = $1 AND company_id = $2', 
+            [email, companyId]
+        );
+        
+        if (existingCustomer.rows.length > 0) {
+            return res.status(400).json({ error: 'Kunde existiert bereits' });
+        }
+        
+        // Kunde registrieren
+        const result = await client.query(
+            `INSERT INTO customers 
+            (name, email, phone, company_id) 
+            VALUES ($1, $2, $3, $4) 
+            RETURNING *`,
+            [name, email, phone, companyId]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Registrierungsfehler:', error);
+        res.status(500).json({ error: 'Registrierung fehlgeschlagen' });
+    } finally {
+        client.release();
+    }
+};
+
+// Login-Route
+const companyLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        const { rows } = await pool.query(
+            'SELECT * FROM companies WHERE email = $1', 
+            [email]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+        }
+        
+        const company = rows[0];
+        const isMatch = await bcrypt.compare(password, company.password_hash);
+        
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+        }
+        
+        const token = jwt.sign(
+            { companyId: company.id, email: company.email }, 
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        
+        res.json({ token, companyId: company.id });
+    } catch (error) {
+        res.status(500).json({ error: 'Anmeldung fehlgeschlagen' });
+    }
+};
+
+// Kundenliste für Unternehmen
+const getCompanyCustomers = async (req, res) => {
+    try {
+        const companyId = req.company.companyId;
+        
+        const { rows } = await pool.query(
+            'SELECT id, name, email, phone, registered_at FROM customers WHERE company_id = $1', 
+            [companyId]
+        );
+        
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: 'Kundenladen fehlgeschlagen' });
+    }
+};
+
+// Express Routes
+router.post('/register-customer', authenticateCompany, registerCustomer);
+router.post('/login', companyLogin);
+router.get('/customers', authenticateCompany, getCompanyCustomers);

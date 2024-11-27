@@ -15,6 +15,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import UserApproval from "./pages/admin/UserApproval";
 import ContentManagement from "./pages/admin/ContentManagement";
 import Settings from "./pages/admin/Settings";
+import Customers from "./pages/admin/Customers";
 
 // Auth Provider
 import { AuthProvider, RequireAuth, RequireAdmin } from "./lib/auth.tsx";
@@ -43,6 +44,11 @@ function Router() {
       <Route path="/admin/content">
         <RequireAdmin>
           <ContentManagement />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/customers">
+        <RequireAdmin>
+          <Customers />
         </RequireAdmin>
       </Route>
       <Route path="/admin/settings">
