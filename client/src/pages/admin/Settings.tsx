@@ -25,7 +25,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const { data: settingsData, isLoading } = useQuery({
+  const { data: settingsData, isLoading, refetch } = useQuery({
     queryKey: ["company-settings"],
     queryFn: async () => {
       const res = await fetch("/api/admin/settings", {
@@ -36,8 +36,10 @@ export default function Settings() {
       console.log("Settings fetched:", data);
       return data;
     },
-    gcTime: 0,
-    staleTime: 0
+    staleTime: 0,
+    cacheTime: 0,
+    retry: 3,
+    retryDelay: 1000
   });
 
   const form = useForm<z.infer<typeof companySettingsSchema>>({
@@ -109,20 +111,32 @@ export default function Settings() {
         credentials: 'include'
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Unbekannter Fehler");
+      }
 
+      const data = await res.json();
+      
+      // Update preview URL with the new logo URL
+      setPreviewUrl(data.logoUrl);
+      
+      // Invalidate and refetch settings
+      await queryClient.invalidateQueries({ queryKey: ["company-settings"] });
+      await refetch();
+
+      setLogoFile(null);
+      
       toast({
         title: "Erfolg",
-        description: "Logo wurde hochgeladen",
+        description: "Logo wurde erfolgreich hochgeladen",
       });
-      
-      queryClient.invalidateQueries({ queryKey: ["company-settings"] });
-      setLogoFile(null);
     } catch (error) {
+      console.error("Logo upload error:", error);
       toast({
         variant: "destructive",
         title: "Fehler",
-        description: "Logo konnte nicht hochgeladen werden",
+        description: error instanceof Error ? error.message : "Logo konnte nicht hochgeladen werden",
       });
     } finally {
       setUploading(false);

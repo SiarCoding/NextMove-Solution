@@ -109,13 +109,21 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {/* Sidebar */}
         <div className="w-64 bg-card border-r">
           <div className="p-4 flex items-center space-x-3">
-            {settings?.logoUrl && (
-              <img
-                src={settings.logoUrl}
-                alt="Company Logo"
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            )}
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
+              {settings?.logoUrl ? (
+                <img
+                  src={settings.logoUrl}
+                  alt="Company Logo"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error("Logo loading error:", e);
+                    e.currentTarget.src = "/fallback-logo.svg";
+                  }}
+                />
+              ) : (
+                <Settings className="w-6 h-6 text-primary" />
+              )}
+            </div>
             <div>
               <h1 className="text-xl font-bold text-primary">
                 {settings?.companyName || "Kundenportal"}

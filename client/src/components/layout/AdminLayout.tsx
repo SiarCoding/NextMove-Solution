@@ -74,13 +74,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Logo & Titel */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center space-x-3">
-            {settings?.logoUrl && (
-              <img
-                src={settings.logoUrl}
-                alt="Company Logo"
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            )}
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
+              {settings?.logoUrl ? (
+                <img
+                  src={settings.logoUrl}
+                  alt="Company Logo"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error("Logo loading error:", e);
+                    e.currentTarget.src = "/fallback-logo.svg";
+                  }}
+                />
+              ) : (
+                <Settings className="w-6 h-6 text-primary" />
+              )}
+            </div>
             <div>
               <h1 className="text-lg font-semibold text-primary">
                 {settings?.companyName || "Admin Portal"}

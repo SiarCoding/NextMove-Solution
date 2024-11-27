@@ -292,54 +292,83 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ error: "Keine Datei hochgeladen" });
       }
 
-      // Use absolute URL for logo
-      const logoUrl = `/uploads/${req.file.filename}`;
-      const existingSettings = await db.query.companySettings.findFirst();
+      // Validate file and generate absolute URL
+      const filename = req.file.filename;
+      const absolutePath = path.join(process.cwd(), "uploads", filename);
+      const logoUrl = `/uploads/${filename}`;
 
+      console.log("Logo Upload - Processing:", {
+        filename,
+        absolutePath,
+        logoUrl
+      });
+
+      // Verify uploaded file exists
+      try {
+        await fs.access(absolutePath);
+      } catch (error) {
+        console.error("Logo Upload - File access error:", error);
+        throw new Error("Hochgeladene Datei konnte nicht gefunden werden");
+      }
+
+      // Fetch existing settings
+      const existingSettings = await db.query.companySettings.findFirst();
+      console.log("Logo Upload - Existing settings:", existingSettings);
+
+      // Delete old logo if exists
       if (existingSettings?.logoUrl) {
-        // Delete old logo if exists
         try {
           const oldLogoPath = path.join(process.cwd(), existingSettings.logoUrl);
           await fs.access(oldLogoPath);
           await fs.unlink(oldLogoPath);
+          console.log("Logo Upload - Deleted old logo:", oldLogoPath);
         } catch (error) {
-          console.error("Error deleting old logo:", error);
+          console.error("Logo Upload - Error deleting old logo:", error);
         }
       }
 
-      // Update or create settings
-      if (existingSettings) {
-        await db.update(companySettings)
-          .set({
-            logoUrl,
-            updatedAt: new Date(),
-          })
-          .where(eq(companySettings.id, existingSettings.id));
-      } else {
-        await db.insert(companySettings).values({
-          logoUrl,
-          companyName: "",
-          email: "admin@nextmove.de",
-          phone: "",
-          address: "",
-          updatedAt: new Date(),
-        });
-      }
-
-      // Verify the file exists after saving
+      // Update or create settings with transaction
       try {
-        await fs.access(path.join(process.cwd(), logoUrl));
+        if (existingSettings) {
+          await db.update(companySettings)
+            .set({
+              logoUrl,
+              updatedAt: new Date(),
+            })
+            .where(eq(companySettings.id, existingSettings.id));
+        } else {
+          await db.insert(companySettings).values({
+            logoUrl,
+            companyName: "",
+            email: "admin@nextmove.de",
+            phone: "",
+            address: "",
+            updatedAt: new Date(),
+          });
+        }
+
+        // Verify settings were updated
+        const updatedSettings = await db.query.companySettings.findFirst();
+        console.log("Logo Upload - Updated settings:", updatedSettings);
+
+        if (!updatedSettings || updatedSettings.logoUrl !== logoUrl) {
+          throw new Error("Logo-URL wurde nicht korrekt in der Datenbank gespeichert");
+        }
+
         res.json({ 
           logoUrl,
-          message: "Logo erfolgreich hochgeladen"
+          message: "Logo erfolgreich hochgeladen",
+          settings: updatedSettings
         });
       } catch (error) {
-        throw new Error("Logo konnte nicht gespeichert werden");
+        console.error("Logo Upload - Database error:", error);
+        throw new Error("Fehler beim Speichern des Logos in der Datenbank");
       }
     } catch (error) {
-      console.error("Logo upload error:", error);
+      console.error("Logo Upload - Fatal error:", error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Fehler beim Hochladen des Logos"
+        error: error instanceof Error ? error.message : "Fehler beim Hochladen des Logos",
+        details: process.env.NODE_ENV === "development" ? error : undefined
       });
     }
   });
