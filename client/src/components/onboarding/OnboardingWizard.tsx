@@ -22,16 +22,25 @@ const steps = [
 
 export default function OnboardingWizard() {
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const progress = (currentStep / (steps.length - 1)) * 100;
 
   const [, navigate] = useLocation();
 
   const handleComplete = async () => {
     try {
-      setCurrentStep(currentStep + 1);
+      setIsSubmitting(true);
+      setError(null);
+      // Wait for any pending state updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Navigate to dashboard after successful checklist submission
       navigate("/dashboard");
     } catch (error) {
-      console.error("Navigation error:", error);
+      setError("Ein Fehler ist aufgetreten");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

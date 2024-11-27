@@ -64,7 +64,9 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
 
   async function onSubmit(values: z.infer<typeof checklistSchema>) {
     try {
+      setError(null);
       setIsSubmitting(true);
+      
       const res = await fetch("/api/onboarding/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,15 +74,19 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
         credentials: "include",
       });
 
-      if (!res.ok) throw new Error("Failed to save checklist");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Fehler beim Speichern der Checkliste");
+      }
+
+      // Wait for successful response before proceeding
+      await res.json();
       
-      // Wait for backend to process
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Force navigation to dashboard
-      window.location.href = "/dashboard";
+      // Only call onComplete after successful save
+      onComplete();
     } catch (error) {
-      console.error(error);
+      console.error("Fehler beim Speichern:", error);
+      setError(error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten");
     } finally {
       setIsSubmitting(false);
     }
