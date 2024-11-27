@@ -39,7 +39,7 @@ export default function OnboardingWizard() {
 
   return (
     <div className="fixed inset-0 bg-[#1a1b1e] z-50">
-      <div className="container max-w-2xl mx-auto h-screen flex items-center">
+      <div className="container max-w-4xl mx-auto h-screen flex items-center">
         <div className="bg-card/10 w-full p-8 rounded-xl border border-border/20 shadow-lg backdrop-blur-sm">
           <div className="space-y-8">
             <div className="space-y-2">

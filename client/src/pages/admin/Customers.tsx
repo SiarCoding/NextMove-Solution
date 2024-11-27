@@ -125,7 +125,19 @@ export default function Customers() {
   if (customersLoading || companiesLoading) {
     return (
       <AdminLayout>
-        <div>Lädt...</div>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Kundenverwaltung</h1>
+          </div>
+          <div className="bg-card rounded-lg border shadow-sm p-8">
+            <div className="flex items-center justify-center">
+              <div className="space-y-4 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="text-muted-foreground">Lade Kundendaten...</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </AdminLayout>
     );
   }
