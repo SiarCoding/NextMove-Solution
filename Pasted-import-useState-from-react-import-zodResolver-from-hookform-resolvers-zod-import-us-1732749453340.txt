@@ -62,8 +62,11 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
     },
   });
 
+  const [error, setError] = useState<string | null>(null);
+
   async function onSubmit(values: z.infer<typeof checklistSchema>) {
     try {
+      setError(null);
       setIsSubmitting(true);
       const res = await fetch("/api/onboarding/checklist", {
         method: "POST",
@@ -72,12 +75,16 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
         credentials: "include",
       });
 
-      if (!res.ok) throw new Error("Failed to save checklist");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Fehler beim Speichern der Checkliste");
+      }
       
-      // Trigger onComplete callback
+      // Only trigger onComplete if the API call was successful
       onComplete();
     } catch (error) {
       console.error(error);
+      setError(error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten");
     } finally {
       setIsSubmitting(false);
     }
@@ -258,14 +265,21 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
           </div>
         </div>
 
-        <div className="flex justify-end pt-6">
-          <Button
-            type="submit"
-            className="bg-[#ff5733] hover:bg-[#ff7a66] text-white shadow-lg transition-colors px-6"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Wird gespeichert..." : "Speichern & Fortfahren"}
-          </Button>
+        <div className="space-y-4 pt-6">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-lg">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              className="bg-[#ff5733] hover:bg-[#ff7a66] text-white shadow-lg transition-colors px-6"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Wird gespeichert..." : "Speichern & Fortfahren"}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
