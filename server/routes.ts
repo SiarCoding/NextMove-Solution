@@ -160,7 +160,8 @@ export function registerRoutes(app: Express) {
       const pendingUsers = await db.query.users.findMany({
         where: and(
           eq(users.role, "customer"),
-          eq(users.isApproved, false)
+          eq(users.isApproved, false),
+          eq(users.assignedAdmin, "admin@nextmove.de")
         )
       });
 

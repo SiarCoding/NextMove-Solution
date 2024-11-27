@@ -2,12 +2,23 @@ import { useState } from "react";
 import AdminLayout from "@/components/layout/AdminLayout";
 import { useQuery } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
+import { type User } from "@db/schema";
+
+interface CustomerData extends User {
+  progress: number;
+  currentPhase: string;
+  completedPhases: string[];
+  onboardingCompleted: boolean;
+}
 
 export default function Tracking() {
-  const { data: customers } = useQuery({
+  const { data: customers } = useQuery<CustomerData[]>({
     queryKey: ["customers-tracking"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/customers/tracking");
+      const res = await fetch("/api/admin/customers/tracking", {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error("Failed to fetch customers");
       return res.json();
     }
   });
