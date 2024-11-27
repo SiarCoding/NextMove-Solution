@@ -160,8 +160,7 @@ export function registerRoutes(app: Express) {
       const pendingUsers = await db.query.users.findMany({
         where: and(
           eq(users.role, "customer"),
-          eq(users.isApproved, false),
-          eq(users.assignedAdmin, "admin@nextmove.de")
+          eq(users.isApproved, false)
         )
       });
 
@@ -360,6 +359,43 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching admin profile:", error);
       res.status(500).json({ error: "Failed to fetch admin profile" });
+    }
+  });
+
+  // Customer dashboard route
+  app.get("/api/customer/dashboard", requireAuth, async (req, res) => {
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, req.session.userId as number)
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (!user.onboardingCompleted) {
+        return res.json({ 
+          showOnboarding: true,
+          user: { ...user, password: undefined }
+        });
+      }
+
+      // Get company information if the user belongs to a company
+      let company = null;
+      if (user.companyId) {
+        company = await db.query.companies.findFirst({
+          where: eq(companies.id, user.companyId)
+        });
+      }
+
+      res.json({ 
+        showOnboarding: false,
+        user: { ...user, password: undefined },
+        company
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to fetch dashboard data" });
     }
   });
 

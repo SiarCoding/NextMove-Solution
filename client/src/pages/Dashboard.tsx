@@ -4,9 +4,23 @@ import CustomerLayout from "../components/layout/CustomerLayout";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import OnboardingProgress from "../components/dashboard/OnboardingProgress";
 import { useAuth } from "../lib/auth";
+import OnboardingWizard from "../components/onboarding/OnboardingWizard";
+import { Building2, Mail, Phone } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Dashboard() {
   const { user } = useAuth();
+
+  const { data: dashboardData } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: async () => {
+      const res = await fetch("/api/customer/dashboard", {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error("Failed to fetch dashboard data");
+      return res.json();
+    },
+  });
 
   const { data: metrics } = useQuery({
     queryKey: ["metrics", user?.id],
@@ -25,6 +39,10 @@ export default function Dashboard() {
     },
     enabled: !!user,
   });
+
+  if (dashboardData?.showOnboarding) {
+    return <OnboardingWizard />;
+  }
 
   const formattedMetrics = metrics?.map((m: any) => ({
     leads: m.leads,
@@ -45,6 +63,34 @@ export default function Dashboard() {
             Hier finden Sie Ihre wichtigsten Metriken und Fortschritte
           </p>
         </div>
+
+        {dashboardData?.company && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Unternehmensinformationen</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="w-4 h-4 text-muted-foreground" />
+                  <span>{dashboardData.company.name}</span>
+                </div>
+                {dashboardData.company.adminContact && (
+                  <>
+                    <div className="flex items-center space-x-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <span>{dashboardData.company.adminContact.email}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <span>{dashboardData.company.adminContact.phone}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <PerformanceMetrics
           data={formattedMetrics}
