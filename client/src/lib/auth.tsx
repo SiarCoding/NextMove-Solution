@@ -1,21 +1,24 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import type { User } from "@db/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, portal: "admin" | "customer") => Promise<void>;
-  logout: () => Promise<void>;
-  isLoading: boolean;
   isAdmin: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string, portal: "admin" | "customer") => Promise<any>;
+  logout: () => Promise<void>;
+  refetchUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  isAdmin: false,
+  isLoading: true,
   login: async () => {},
   logout: async () => {},
-  isLoading: true,
-  isAdmin: false,
+  refetchUser: async () => {},
 });
 
 interface AuthProviderProps {
@@ -23,96 +26,69 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [, navigate] = useLocation();
 
-  useEffect(() => {
-    const checkSession = async (retryCount = 0) => {
-      try {
-        const res = await fetch("/api/auth/session", {
-          credentials: 'include'
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) {
-            setUser(data.user);
-            localStorage.setItem("cachedUser", JSON.stringify(data.user));
-          } else {
-            // If no user data but response is OK, clear the user
-            setUser(null);
-            localStorage.removeItem("cachedUser");
-          }
-        } else {
-          // Try to use cached user if available
-          const cachedUser = localStorage.getItem("cachedUser");
-          if (cachedUser && !user) {
-            setUser(JSON.parse(cachedUser));
-          } else if (retryCount < 3) {
-            console.log(`Retrying session check (${retryCount + 1}/3)...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return checkSession(retryCount + 1);
-          } else {
-            // Clear user data after all retries fail
-            setUser(null);
-            localStorage.removeItem("cachedUser");
-          }
-        }
-      } catch (error) {
-        console.error("Session check failed:", error);
-        if (retryCount >= 2) {
-          setUser(null);
-          localStorage.removeItem("cachedUser");
-        }
-      } finally {
-        setIsLoading(false);
+  const { data: session, isLoading } = useQuery({
+    queryKey: ["session"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/session", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch session");
       }
-    };
-
-    checkSession();
-
-    const intervalId = setInterval(checkSession, 2 * 60 * 1000);
-
-    return () => clearInterval(intervalId);
-  }, []);
+      return res.json();
+    },
+  });
 
   const login = async (email: string, password: string, portal: "admin" | "customer") => {
-    const res = await fetch("/api/auth/login", {
+    const endpoint = portal === "admin" ? "/api/auth/admin/login" : "/api/auth/login";
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, portal }),
-      credentials: 'include'
+      body: JSON.stringify({ email, password }),
+      credentials: "include",
     });
 
     if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Anmeldung fehlgeschlagen");
+      throw new Error("Login failed");
     }
 
+    await queryClient.invalidateQueries({ queryKey: ["session"] });
     const data = await res.json();
-    setUser(data.user);
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    localStorage.setItem("cachedUser", JSON.stringify(data.user));
+    return data;
   };
 
   const logout = async () => {
-    const res = await fetch("/api/auth/logout", { method: "POST" });
-    if (!res.ok) {
-      throw new Error("Abmeldung fehlgeschlagen");
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      queryClient.clear();
+      navigate("/");
+    } catch (error) {
+      console.error("Logout failed:", error);
     }
-    
-    setUser(null);
-    localStorage.removeItem("cachedUser");
-    navigate("/");
   };
 
-  const isAdmin = user?.role === "admin";
+  const refetchUser = async () => {
+    await queryClient.refetchQueries({ queryKey: ["session"] });
+    await queryClient.refetchQueries({ queryKey: ["user"] });
+  };
+
+  const value: AuthContextType = {
+    user: session?.user ?? null,
+    isAdmin: session?.user?.role === "admin",
+    isLoading,
+    login,
+    logout,
+    refetchUser,
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading, isAdmin }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -122,51 +98,29 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/");
-    }
-  }, [user, isLoading, navigate]);
-
   if (isLoading) {
-    return <div>Lade...</div>;
-  }
-
-  return user ? <>{children}</> : null;
-}
-
-export function RequireAdmin({ children }: { children: ReactNode }) {
-  const { user, isLoading, isAdmin } = useAuth();
-  const [, navigate] = useLocation();
-
-  useEffect(() => {
-    if (!isLoading && (!user || !isAdmin)) {
-      navigate("/admin/login");
-    }
-  }, [user, isAdmin, isLoading, navigate]);
-
-  if (isLoading) {
-    return <div>Lade...</div>;
+    return null;
   }
 
   if (!user) {
-    return <div className="flex items-center justify-center h-screen bg-background">
-      <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Zugriff verweigert</h2>
-        <p className="text-muted-foreground">Bitte melden Sie sich an, um fortzufahren.</p>
-      </div>
-    </div>;
+    navigate("/");
+    return null;
   }
 
-  if (!isAdmin) {
-    return <div className="flex items-center justify-center h-screen bg-background">
-      <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold text-destructive">Kein Administratorzugriff</h2>
-        <p className="text-muted-foreground">
-          Sie haben keine Berechtigung, auf den Administratorbereich zuzugreifen.
-        </p>
-      </div>
-    </div>;
+  return <>{children}</>;
+}
+
+export function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user, isAdmin, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!user || !isAdmin) {
+    navigate("/admin/login");
+    return null;
   }
 
   return <>{children}</>;

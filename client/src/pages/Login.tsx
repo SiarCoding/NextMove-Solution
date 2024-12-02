@@ -52,11 +52,11 @@ export default function Login() {
       } else {
         navigate("/dashboard");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Fehler",
-        description: "Anmeldung fehlgeschlagen",
+        description: error?.message || "Anmeldung fehlgeschlagen",
       });
     } finally {
       setIsLoading(false);

@@ -16,6 +16,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import UserApproval from "./pages/admin/UserApproval";
 import ContentManagement from "./pages/admin/ContentManagement";
 import Settings from "./pages/admin/Settings";
+import CustomerSettings from "./pages/customer/Settings";
 import Customers from "./pages/admin/Customers";
 import Tracking from "./pages/admin/Tracking";
 
@@ -35,6 +36,11 @@ function Router() {
       <Route path="/dashboard">
         <RequireAuth>
           <Dashboard />
+        </RequireAuth>
+      </Route>
+      <Route path="/settings">
+        <RequireAuth>
+          <CustomerSettings />
         </RequireAuth>
       </Route>
       <Route path="/admin/login" component={AdminLogin} />

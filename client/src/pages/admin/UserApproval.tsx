@@ -19,16 +19,25 @@ export default function UserApproval() {
   const { data: pendingUsers, isLoading } = useQuery({
     queryKey: ["pending-users"],
     queryFn: async () => {
-      const res = await fetch("/api/users/pending");
+      const res = await fetch("/api/admin/users/pending", {
+        credentials: "include"
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch pending users");
+      }
       return res.json();
     },
   });
 
   const approveMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/users/${userId}/approve`, {
+      const res = await fetch(`/api/admin/users/${userId}/approve`, {
         method: "POST",
+        credentials: "include"
       });
+      if (!res.ok) {
+        throw new Error("Failed to approve user");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -38,13 +47,24 @@ export default function UserApproval() {
         description: "Benutzer wurde freigegeben",
       });
     },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Benutzer konnte nicht freigegeben werden",
+      });
+    }
   });
 
   const rejectMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/users/${userId}/reject`, {
+      const res = await fetch(`/api/admin/users/${userId}/reject`, {
         method: "POST",
+        credentials: "include"
       });
+      if (!res.ok) {
+        throw new Error("Failed to reject user");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -54,6 +74,13 @@ export default function UserApproval() {
         description: "Benutzer wurde abgelehnt",
       });
     },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Benutzer konnte nicht abgelehnt werden",
+      });
+    }
   });
 
   return (

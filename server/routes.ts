@@ -11,18 +11,36 @@ import {
   callbacks,
   companySettings,
   companies,
-  type User
 } from "@db/schema";
 import { uploadFile } from "./upload";
 import multer from "multer";
 import path from "path";
+import "./types";
+import { type User } from "./types";
 
 // Middleware to check if user is authenticated
 const requireAuth = async (req: Request, res: Response, next: Function) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: "Nicht authentifiziert" });
   }
-  next();
+
+  try {
+    // Verify user exists in database
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, req.session.userId)
+    });
+
+    if (!user) {
+      req.session.destroy(() => {});
+      return res.status(401).json({ error: "Nicht authentifiziert" });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+    return res.status(500).json({ error: "Serverfehler" });
+  }
 };
 
 // Middleware to check if user is admin
@@ -31,15 +49,22 @@ const requireAdmin = async (req: Request, res: Response, next: Function) => {
     return res.status(401).json({ error: "Nicht authentifiziert" });
   }
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, req.session.userId)
-  });
+  try {
+    // Verify user exists in database
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, req.session.userId)
+    });
 
-  if (!user || user.role !== "admin") {
-    return res.status(403).json({ error: "Keine Berechtigung" });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Keine Berechtigung" });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Admin middleware error:", error);
+    return res.status(500).json({ error: "Serverfehler" });
   }
-
-  next();
 };
 
 export function registerRoutes(app: Express) {
@@ -83,7 +108,7 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password, portal = "customer" } = req.body;
+      const { email, password } = req.body;
 
       const user = await db.query.users.findFirst({
         where: eq(users.email, email)
@@ -93,36 +118,94 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
-      const isMatch = await bcrypt.compare(password, user.password);
-
-      if (!isMatch) {
+      if (user.role !== "customer") {
         return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
-      // Check portal access
-      if (portal === "customer" && user.role === "admin") {
-        return res.status(403).json({ error: "Administratoren müssen sich über das Adminportal anmelden" });
+      if (!user.isApproved) {
+        return res.status(401).json({ error: "Ihr Account wurde noch nicht freigegeben" });
       }
 
-      if (portal === "admin" && user.role !== "admin") {
-        return res.status(403).json({ error: "Keine Administratorberechtigung" });
-      }
-
-      // Check if customer account is approved
-      if (user.role === "customer" && !user.isApproved) {
-        return res.status(403).json({ error: "Account noch nicht freigegeben" });
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
       req.session.userId = user.id;
-      
-      await db.update(users)
-        .set({ lastActive: new Date() })
-        .where(eq(users.id, user.id));
-
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       console.error("Login error:", error);
-      res.status(500).json({ error: "Anmeldung fehlgeschlagen" });
+      res.status(500).json({ error: "Interner Serverfehler" });
+    }
+  });
+
+  // Admin seed route (nur für Entwicklung)
+  app.post("/api/auth/admin/seed", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      // Überprüfen Sie, ob bereits ein Admin existiert
+      const existingAdmin = await db.query.users.findFirst({
+        where: eq(users.email, email)
+      });
+
+      if (existingAdmin) {
+        return res.status(400).json({ error: "Admin existiert bereits" });
+      }
+
+      // Admin-Benutzer erstellen
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const [admin] = await db.insert(users)
+        .values({
+          email,
+          password: hashedPassword,
+          firstName: "Admin",
+          lastName: "User",
+          role: "admin",
+          isApproved: true,
+          onboardingCompleted: true,
+          currentPhase: "Complete",
+          progress: 100
+        })
+        .returning();
+
+      res.status(201).json({ message: "Admin erfolgreich erstellt", admin: { ...admin, password: undefined } });
+    } catch (error) {
+      console.error("Admin seed error:", error);
+      res.status(500).json({ error: "Fehler beim Erstellen des Admins" });
+    }
+  });
+
+  app.post("/api/auth/admin/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      const user = await db.query.users.findFirst({
+        where: and(
+          eq(users.email, email),
+          eq(users.role, "admin")
+        )
+      });
+
+      if (!user) {
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
+      }
+
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
+      }
+
+      // Session setzen
+      req.session.userId = user.id;
+      await req.session.save();
+
+      // Benutzer ohne Passwort zurückgeben
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      console.error("Admin login error:", error);
+      res.status(500).json({ error: "Serverfehler" });
     }
   });
 
@@ -146,13 +229,14 @@ export function registerRoutes(app: Express) {
       });
 
       if (!user) {
+        req.session.destroy(() => {});
         return res.status(401).json({ error: "Nicht authentifiziert" });
       }
 
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       console.error("Session check error:", error);
-      res.status(500).json({ error: "Sitzungsprüfung fehlgeschlagen" });
+      res.status(500).json({ error: "Serverfehler" });
     }
   });
 
@@ -229,25 +313,57 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Onboarding routes
   app.post("/api/onboarding/checklist", requireAuth, async (req, res) => {
     try {
-      const userId = req.session.userId as number;
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Nicht authentifiziert" });
+      }
+
+      const checklistData = req.body;
+
+      // Update user's onboarding status
+      const result = await db
+        .update(users)
+        .set({
+          onboardingCompleted: true,
+          currentPhase: "Abgeschlossen",
+          completedPhases: ["Willkommen", "Einführungsvideo", "Checkliste"],
+          progress: 100,
+        })
+        .where(eq(users.id, Number(userId)))
+        .returning({ updated: users.onboardingCompleted });
+
+      if (!result?.[0]?.updated) {
+        return res.status(500).json({ error: "Fehler beim Aktualisieren des Benutzerstatus" });
+      }
       
-      // Update user progress
+      res.json({ success: true, message: "Onboarding erfolgreich abgeschlossen" });
+    } catch (error) {
+      console.error("Error saving checklist:", error);
+      res.status(500).json({ error: "Fehler beim Speichern der Checkliste" });
+    }
+  });
+
+  app.post("/api/customer/onboarding/complete", requireAuth, async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       await db.update(users)
         .set({ 
-          progress: 100,
-          currentPhase: "Completed",
-          completedPhases: ["Checkliste", "Onboarding"],
-          onboardingCompleted: true
+          onboardingCompleted: true,
+          currentPhase: "Setup",
+          progress: 25
         })
-        .where(eq(users.id, userId));
+        .where(eq(users.id, req.user.id));
 
-      // Send success response
-      res.status(200).json({ success: true });
+      res.json({ message: "Onboarding completed successfully" });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Failed to save checklist" });
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ error: "Failed to complete onboarding" });
     }
   });
 
@@ -416,6 +532,37 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Customer routes
+  app.get("/api/customer/admin-info", requireAuth, async (req, res) => {
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, req.session.userId as number)
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get admin user's company settings
+      const adminSettings = await db.query.companySettings.findFirst({
+        where: eq(companySettings.email, user.assignedAdmin)
+      });
+
+      if (!adminSettings) {
+        return res.status(404).json({ error: "Admin settings not found" });
+      }
+
+      res.json({
+        companyName: adminSettings.companyName,
+        email: adminSettings.email,
+        logoUrl: adminSettings.logoUrl
+      });
+    } catch (error) {
+      console.error("Error fetching admin info:", error);
+      res.status(500).json({ error: "Failed to fetch admin info" });
+    }
+  });
+
   // Multi-company customer management routes
   app.get("/api/admin/customers", requireAdmin, async (req, res) => {
     try {
@@ -532,6 +679,59 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching admin stats:", error);
       res.status(500).json({ error: "Failed to fetch admin stats" });
+    }
+  });
+
+  // Customer Settings Routes
+  app.put("/api/customer/settings", requireAuth, async (req, res) => {
+    try {
+      const { firstName, lastName, email } = req.body;
+      const userId = req.session.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Nicht autorisiert" });
+      }
+
+      // Update user in database
+      await db.update(users)
+        .set({
+          firstName,
+          lastName,
+          email,
+        })
+        .where(eq(users.id, userId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({ message: "Fehler beim Aktualisieren der Einstellungen" });
+    }
+  });
+
+  app.post("/api/customer/profile-image", requireAuth, upload.single("profileImage"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Kein Bild hochgeladen" });
+      }
+
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Nicht autorisiert" });
+      }
+
+      const imageUrl = `/uploads/${req.file.filename}`;
+
+      // Update user profile image in database
+      await db.update(users)
+        .set({
+          profileImage: imageUrl,
+        })
+        .where(eq(users.id, userId));
+
+      res.json({ success: true, imageUrl });
+    } catch (error) {
+      console.error("Error uploading profile image:", error);
+      res.status(500).json({ message: "Fehler beim Hochladen des Profilbilds" });
     }
   });
 }

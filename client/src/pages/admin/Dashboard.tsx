@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { type User } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import AdminLayout from "../../components/layout/AdminLayout";
+import { RequireAdmin } from "@/lib/auth";
 import {
   Card,
   CardContent,
@@ -12,33 +13,41 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Users, UserCheck, Video, PhoneCall } from "lucide-react";
 
-export default function AdminDashboard() {
+function AdminDashboard() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
 
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async () => {
       const res = await fetch("/api/admin/stats");
+      if (!res.ok) {
+        throw new Error("Failed to fetch stats");
+      }
       return res.json();
     },
   });
 
-  const { data: pendingCallbacks } = useQuery({
+  const { data: pendingCallbacks, isLoading: callbacksLoading } = useQuery({
     queryKey: ["pending-callbacks"],
     queryFn: async () => {
       const res = await fetch("/api/callbacks/pending");
+      if (!res.ok) {
+        throw new Error("Failed to fetch callbacks");
+      }
       return res.json();
     },
   });
 
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
-  const { data: pendingUsers } = useQuery({
+  const { data: pendingUsers, isLoading: usersLoading } = useQuery({
     queryKey: ["pending-users"],
     queryFn: async () => {
       const res = await fetch("/api/admin/users/pending");
-      if (!res.ok) throw new Error("Failed to fetch pending users");
+      if (!res.ok) {
+        throw new Error("Failed to fetch pending users");
+      }
       return res.json();
     }
   });
@@ -49,7 +58,9 @@ export default function AdminDashboard() {
         method: "POST",
         credentials: "include"
       });
-      if (!res.ok) throw new Error("Failed to approve user");
+      if (!res.ok) {
+        throw new Error("Failed to approve user");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -170,5 +181,14 @@ export default function AdminDashboard() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+// Wrap the dashboard with RequireAdmin
+export default function ProtectedAdminDashboard() {
+  return (
+    <RequireAdmin>
+      <AdminDashboard />
+    </RequireAdmin>
   );
 }

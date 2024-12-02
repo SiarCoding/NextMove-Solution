@@ -5,6 +5,14 @@ import { createServer } from "http";
 import cors from "cors";
 import session from "express-session";
 import path from "path";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables with absolute path
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 function log(message: string) {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -21,12 +29,14 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === "production" ? false : "http://localhost:5000",
-  credentials: true
+  origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5000", "http://localhost:5173"],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Session configuration
-app.use(session({
+const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || "your-secret-key",
   resave: false,
   saveUninitialized: false,
@@ -34,9 +44,19 @@ app.use(session({
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: "lax"
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax"
   }
-}));
+});
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  sessionMiddleware(req, res, (err) => {
+    if (err) {
+      console.error("Session middleware error:", err);
+      return res.status(500).json({ error: "Serverfehler" });
+    }
+    next();
+  });
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

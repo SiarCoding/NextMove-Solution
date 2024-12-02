@@ -2,16 +2,13 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 
 const checklistSchema = z.object({
   paymentOption: z.string().min(1, "Zahlungsoption ist erforderlich"),
@@ -33,68 +30,95 @@ const checklistSchema = z.object({
   }),
 });
 
-interface ChecklistFormProps {
+export type ChecklistFormProps = {
   onComplete: () => void;
-}
+};
 
 export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
   const form = useForm<z.infer<typeof checklistSchema>>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
-      paymentOption: "",
-      taxId: "",
-      domain: "",
-      targetAudience: "",
-      companyInfo: "",
+      paymentOption: "Kreditkarte",
+      taxId: "DE123456789",
+      domain: "example.com",
+      targetAudience: "B2B",
+      companyInfo: "Test Company",
       webDesign: {
-        colorScheme: "",
+        colorScheme: "#FF5733",
         logoUrl: "",
       },
       marketResearch: {
-        competitors: "",
+        competitors: "Competitor A, Competitor B",
       },
       legalInfo: {
-        address: "",
-        impressum: "",
-        privacy: "",
+        address: "Test Street 1",
+        impressum: "Test Impressum",
+        privacy: "Test Privacy",
       },
     },
   });
 
-  async function onSubmit(values: z.infer<typeof checklistSchema>) {
+  const handleSubmit = form.handleSubmit(async (values) => {
     try {
+      if (!user) {
+        throw new Error("Nicht authentifiziert");
+      }
+
       setError(null);
       setIsSubmitting(true);
       
+      console.log("Submitting form with values:", values);
+      
       const res = await fetch("/api/onboarding/checklist", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        headers: { 
+          "Content-Type": "application/json",
+        },
         credentials: "include",
+        body: JSON.stringify(values),
       });
 
+      console.log("Server response status:", res.status);
+
+      const data = await res.json();
+      console.log("Server response data:", data);
+
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Fehler beim Speichern der Checkliste");
+        throw new Error(data.error || "Fehler beim Speichern der Checkliste");
       }
 
-      // Wait for successful response before proceeding
-      await res.json();
-      
-      // Only call onComplete after successful save
-      onComplete();
+      if (data.success) {
+        // Invalidate queries to refresh data
+        await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        
+        // Call onComplete and navigate
+        onComplete();
+        navigate("/dashboard", { replace: true });
+      } else {
+        throw new Error("Unerwarteter Serverfehler");
+      }
     } catch (error) {
       console.error("Fehler beim Speichern:", error);
       setError(error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten");
+      
+      // If not authenticated, redirect to login
+      if (error instanceof Error && error.message === "Nicht authentifiziert") {
+        navigate("/", { replace: true });
+      }
     } finally {
       setIsSubmitting(false);
     }
-  }
+  });
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-8">
         {/* Payment Information Column */}
         <div className="grid grid-cols-2 gap-8">
           <div className="space-y-6">
@@ -267,11 +291,15 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
           </div>
         </div>
 
-        <div className="flex justify-end pt-6">
+        <div className="flex flex-col items-end gap-4 mt-6">
+          {error && (
+            <div className="text-red-500 text-sm">{error}</div>
+          )}
           <Button
             type="submit"
-            className="bg-[#ff5733] hover:bg-[#ff7a66] text-white shadow-lg transition-colors px-6"
+            className="bg-[#ff5733] hover:bg-[#ff7a66] text-white shadow-lg transition-colors px-6 w-full md:w-auto"
             disabled={isSubmitting}
+            onClick={() => console.log("Button clicked")}
           >
             {isSubmitting ? "Wird gespeichert..." : "Speichern & Fortfahren"}
           </Button>
