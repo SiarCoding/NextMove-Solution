@@ -45,6 +45,14 @@ export const upload = multer({
       } else {
         cb(new Error('Invalid image type. Allowed types: JPG, PNG, GIF'));
       }
+    } else if (file.fieldname === 'thumbnail') {
+      // Für Thumbnail-Uploads
+      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (allowedImageTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid image type. Allowed types: JPG, PNG, GIF, WEBP'));
+      }
     } else if (file.fieldname === 'file') {
       // For video uploads
       const allowedVideoTypes = [

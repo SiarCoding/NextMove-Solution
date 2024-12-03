@@ -39,15 +39,9 @@ export default function Login() {
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     try {
       setIsLoading(true);
-      await login(values.email, values.password, "customer");
+      const loginResponse = await login(values.email, values.password, "customer");
       
-      // Check onboarding status after login
-      const res = await fetch("/api/auth/session", {
-        credentials: 'include'
-      });
-      const data = await res.json();
-      
-      if (data.user && !data.user.onboardingCompleted) {
+      if (loginResponse.user?.shouldRedirectToOnboarding || !loginResponse.user?.onboardingCompleted) {
         navigate("/onboarding");
       } else {
         navigate("/dashboard");

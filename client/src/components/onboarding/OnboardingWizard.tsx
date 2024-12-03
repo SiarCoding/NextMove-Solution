@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useLocation } from "wouter";
 import ChecklistForm from "./ChecklistForm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 
 interface OnboardingVideo {
   id: number;
@@ -30,6 +31,7 @@ const steps = [
 ];
 
 export default function OnboardingWizard() {
+  const { user, refetchUser } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,6 +41,13 @@ export default function OnboardingWizard() {
 
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // If user has completed onboarding, redirect to dashboard
+    if (user?.onboardingCompleted) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   const { data: onboardingVideos, isLoading, error: fetchError } = useQuery<OnboardingVideo[]>({
     queryKey: ['onboarding-videos'],
@@ -83,8 +92,29 @@ export default function OnboardingWizard() {
   const handleComplete = async () => {
     try {
       setIsSubmitting(true);
+      setError(null);
+
+      // Update onboarding status
+      const response = await fetch('/api/customer/onboarding/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to complete onboarding');
+      }
+
+      // Invalidate queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ["session"] });
-      // Navigiere zum Dashboard und ersetze den aktuellen Eintrag im Browser-Verlauf
+      await queryClient.invalidateQueries({ queryKey: ["progress"] });
+      
+      // Refresh user data
+      await refetchUser();
+
+      // Navigate to dashboard and replace current history entry
       navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("Error completing onboarding:", err);
@@ -186,11 +216,16 @@ export default function OnboardingWizard() {
           </div>
         );
       case 2:
-        return <ChecklistForm />;
+        return <ChecklistForm onComplete={handleComplete} />;
       default:
         return null;
     }
   };
+
+  // If user has completed onboarding, don't render anything
+  if (user?.onboardingCompleted) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-[#0A0A0B] z-50 overflow-auto">

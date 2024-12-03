@@ -18,6 +18,7 @@ import Settings from "./pages/admin/Settings";
 import CustomerSettings from "./pages/customer/Settings";
 import Customers from "./pages/admin/Customers";
 import Tracking from "./pages/admin/Tracking";
+import CustomerDetails from "./pages/admin/CustomerDetails";
 import Callbacks from "./pages/admin/Callbacks";
 import Support from "./pages/Support";
 import PartnerProgram from "./pages/PartnerProgram";
@@ -54,9 +55,50 @@ function Router() {
           <Dashboard />
         </RequireAuth>
       </Route>
-      <Route path="/tutorials">
+      <Route path="/admin">
+        <RequireAdmin>
+          <AdminDashboard />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/users">
+        <RequireAdmin>
+          <UserApproval />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/content">
+        <RequireAdmin>
+          <ContentManagement />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/settings">
+        <RequireAdmin>
+          <Settings />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/customers">
+        <RequireAdmin>
+          <Customers />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/tracking">
+        <RequireAdmin>
+          <Tracking />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/tracking/:id">
+        <RequireAdmin>
+          <CustomerDetails />
+        </RequireAdmin>
+      </Route>
+      <Route path="/admin/callbacks">
+        <RequireAdmin>
+          <Callbacks />
+        </RequireAdmin>
+      </Route>
+      <Route path="/settings">
         <RequireAuth>
-          <Tutorials />
+          <CustomerSettings />
         </RequireAuth>
       </Route>
       <Route path="/support">
@@ -69,46 +111,10 @@ function Router() {
           <PartnerProgram />
         </RequireAuth>
       </Route>
-      <Route path="/settings">
+      <Route path="/tutorials">
         <RequireAuth>
-          <CustomerSettings />
+          <Tutorials />
         </RequireAuth>
-      </Route>
-      <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin">
-        <RequireAdmin>
-          <AdminDashboard />
-        </RequireAdmin>
-      </Route>
-      <Route path="/admin/users">
-        <RequireAdmin>
-          <UserApproval />
-        </RequireAdmin>
-      </Route>
-      <Route path="/admin/content">
-        <RequireAdmin>
-          <ContentManagement />
-        </RequireAdmin>
-      </Route>
-      <Route path="/admin/customers">
-        <RequireAdmin>
-          <Customers />
-        </RequireAdmin>
-      </Route>
-      <Route path="/admin/settings">
-        <RequireAdmin>
-          <Settings />
-        </RequireAdmin>
-      </Route>
-      <Route path="/admin/tracking">
-        <RequireAdmin>
-          <Tracking />
-        </RequireAdmin>
-      </Route>
-      <Route path="/admin/callbacks">
-        <RequireAdmin>
-          <Callbacks />
-        </RequireAdmin>
       </Route>
       <Route>404 - Seite nicht gefunden</Route>
     </Switch>

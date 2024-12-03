@@ -13,7 +13,10 @@ import type { Tutorial } from "@db/schema";
 import { cn } from "@/lib/utils";
 
 interface TutorialCardProps {
-  tutorial: Tutorial & { completed?: boolean };
+  tutorial: Tutorial & { 
+    completed?: boolean;
+    thumbnailUrl?: string | null;
+  };
   onComplete?: (tutorialId: number) => void;
 }
 
@@ -45,11 +48,24 @@ export default function TutorialCard({ tutorial, onComplete }: TutorialCardProps
             "aspect-video rounded-md flex items-center justify-center relative group cursor-pointer",
             tutorial.completed ? "bg-primary/10" : "bg-muted"
           )} onClick={() => setIsOpen(true)}>
+            {tutorial.thumbnailUrl ? (
+              <img 
+                src={tutorial.thumbnailUrl} 
+                alt={tutorial.title}
+                className="w-full h-full object-cover rounded-md"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-md flex items-center justify-center">
+                <PlayCircle className={cn(
+                  "h-12 w-12 transition-all duration-200",
+                  tutorial.completed ? "text-primary" : "text-muted-foreground",
+                )} />
+              </div>
+            )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-md flex items-center justify-center">
               <PlayCircle className={cn(
-                "h-12 w-12 transition-all duration-200",
-                tutorial.completed ? "text-primary" : "text-muted-foreground",
-                "group-hover:scale-110 group-hover:text-white"
+                "h-12 w-12 transition-all duration-200 opacity-0 group-hover:opacity-100",
+                tutorial.completed ? "text-primary" : "text-white",
               )} />
             </div>
           </div>

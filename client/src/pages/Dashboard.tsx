@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import CustomerLayout from "../components/layout/CustomerLayout";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import OnboardingProgress from "../components/dashboard/OnboardingProgress";
+import OnboardingWizard from "../components/onboarding/OnboardingWizard"; // Import OnboardingWizard
 import { useAuth } from "../lib/auth";
 import { useLocation } from "wouter";
 import { Building2, Mail, Phone, Search } from "lucide-react";
@@ -43,12 +44,9 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // Nur beim ersten Login zum Onboarding navigieren
-  useEffect(() => {
-    if (dashboardData?.showOnboarding && !user?.hasCompletedOnboarding) {
-      navigate("/onboarding", { replace: true });
-    }
-  }, [dashboardData, navigate, user?.hasCompletedOnboarding]);
+  if (!user) {
+    return null;
+  }
 
   const formattedMetrics =
     metrics?.map((m: any) => ({

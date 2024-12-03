@@ -91,11 +91,13 @@ export default function OnboardingProgress({ isAdmin, userId, initialProgress }:
   const { data: progressData } = useQuery<ProgressData>({
     queryKey: ["progress", userId],
     queryFn: async () => {
+      if (!userId) return initialProgress || { currentPhase: "onboarding", completedPhases: [] };
       const response = await axios.get("/api/customer/progress");
       return response.data;
     },
     initialData: initialProgress,
-    refetchInterval: isAdmin ? 5000 : 0,
+    refetchInterval: 0,
+    enabled: !initialProgress
   });
 
   const progress = calculateProgress(progressData?.currentPhase || "onboarding");
@@ -104,23 +106,29 @@ export default function OnboardingProgress({ isAdmin, userId, initialProgress }:
   return (
     <div className="w-full space-y-4">
       <div className="flex justify-between gap-2">
-        {defaultSteps.map((step) => (
-          <div key={step.id} className="flex flex-col items-center text-center flex-1">
-            <div className="mb-2">
-              {isStepCompleted(step, currentPhase) ? (
-                <CheckCircle2 className="h-6 w-6 text-primary" />
-              ) : (
-                <Circle className="h-6 w-6 text-muted-foreground" />
-              )}
+        {defaultSteps.map((step) => {
+          const isCompleted = isStepCompleted(step, currentPhase);
+          return (
+            <div key={step.id} className="flex flex-col items-center text-center flex-1">
+              <div className="mb-2">
+                {isCompleted ? (
+                  <CheckCircle2 className="h-6 w-6 text-primary transition-all duration-300 transform scale-100" />
+                ) : (
+                  <Circle className="h-6 w-6 text-muted-foreground transition-all duration-300 transform scale-100" />
+                )}
+              </div>
+              <div className="text-sm font-medium mb-1">{step.title}</div>
+              <div className="text-xs text-muted-foreground leading-tight">
+                {step.description}
+              </div>
             </div>
-            <div className="text-sm font-medium mb-1">{step.title}</div>
-            <div className="text-xs text-muted-foreground leading-tight">
-              {step.description}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <Progress value={progress} className="h-2" />
+      <Progress 
+        value={progress} 
+        className="h-2 transition-all duration-500 ease-in-out" 
+      />
     </div>
   );
 }

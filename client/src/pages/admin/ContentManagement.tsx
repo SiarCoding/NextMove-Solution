@@ -37,16 +37,21 @@ export default function ContentManagement() {
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
   const uploadMutation = useMutation({
     mutationFn: async (values: {
       file: File;
+      thumbnail?: File | null;
       title: string;
       description: string;
       type: 'tutorial' | 'onboarding';
     }) => {
       const formData = new FormData();
       formData.append('file', values.file);
+      if (values.thumbnail) {
+        formData.append('thumbnail', values.thumbnail);
+      }
       formData.append('title', values.title);
       formData.append('description', values.description);
       formData.append('type', values.type);
@@ -67,21 +72,19 @@ export default function ContentManagement() {
     onSuccess: () => {
       toast({
         title: "Erfolg",
-        description: "Datei erfolgreich hochgeladen",
+        description: "Video erfolgreich hochgeladen",
       });
-      setTitle("");
-      setDescription("");
-      setSelectedFile(null);
-      setVideoFile(null);
       setVideoTitle("");
       setVideoDescription("");
+      setVideoFile(null);
+      setThumbnailFile(null);
       queryClient.invalidateQueries({ queryKey: ["tutorials"] });
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Fehler",
-        description: error.message || "Fehler beim Hochladen der Datei",
+        description: error.message || "Fehler beim Hochladen",
       });
     },
   });
@@ -133,58 +136,31 @@ export default function ContentManagement() {
   };
 
   const handleVideoUpload = async () => {
-    if (!videoFile || !videoType || !videoTitle) {
+    if (!videoFile) {
       toast({
-        title: "Fehler",
-        description: "Bitte füllen Sie alle Pflichtfelder aus",
         variant: "destructive",
+        title: "Fehler",
+        description: "Bitte wählen Sie ein Video aus",
       });
       return;
     }
 
-    // Create FormData
-    const formData = new FormData();
-    formData.append('file', videoFile);
-    formData.append('title', videoTitle);
-    formData.append('description', videoDescription || '');
-    formData.append('type', videoType);
-
-    try {
-      const response = await fetch('/api/admin/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload fehlgeschlagen');
-      }
-
-      const result = await response.json();
-      console.log('Upload result:', result);
-
+    if (videoType === 'tutorial' && !thumbnailFile) {
       toast({
-        title: "Erfolg",
-        description: "Video wurde erfolgreich hochgeladen",
-      });
-
-      // Reset form
-      setVideoFile(null);
-      setVideoTitle('');
-      setVideoDescription('');
-      
-      // Refresh video lists
-      queryClient.invalidateQueries({ queryKey: ['tutorials'] });
-      queryClient.invalidateQueries({ queryKey: ['onboarding-videos'] });
-      
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: "Fehler",
-        description: error instanceof Error ? error.message : 'Upload fehlgeschlagen',
         variant: "destructive",
+        title: "Fehler",
+        description: "Bitte wählen Sie ein Thumbnail für das Tutorial aus",
       });
+      return;
     }
+
+    uploadMutation.mutate({
+      file: videoFile,
+      thumbnail: thumbnailFile,
+      title: videoTitle,
+      description: videoDescription,
+      type: videoType,
+    });
   };
 
   const { data: videos, isLoading: isLoadingVideos } = useQuery({
@@ -286,77 +262,70 @@ export default function ContentManagement() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="space-y-2">
+              <div>
                 <Label>Video Typ</Label>
-                <Select
-                  onValueChange={(value) => {
-                    setVideoType(value as 'onboarding' | 'tutorial');
-                  }}
-                >
+                <Select value={videoType} onValueChange={(value: 'tutorial' | 'onboarding') => setVideoType(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Wählen Sie den Video-Typ" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="onboarding">Onboarding Video</SelectItem>
-                    <SelectItem value="tutorial">Tutorial Video</SelectItem>
+                    <SelectItem value="tutorial">Tutorial</SelectItem>
+                    <SelectItem value="onboarding">Onboarding</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Titel</Label>
+              <div>
+                <Label>Video Titel</Label>
                 <Input
-                  placeholder="Video Titel"
                   value={videoTitle}
                   onChange={(e) => setVideoTitle(e.target.value)}
+                  placeholder="Video Titel eingeben"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Beschreibung</Label>
+              <div>
+                <Label>Video Beschreibung</Label>
                 <Textarea
-                  placeholder="Video Beschreibung"
                   value={videoDescription}
                   onChange={(e) => setVideoDescription(e.target.value)}
+                  placeholder="Video Beschreibung eingeben"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div>
                 <Label>Video Datei</Label>
-                <div className="grid w-full max-w-sm items-center gap-1.5">
+                <Input
+                  type="file"
+                  onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                  accept="video/*"
+                />
+              </div>
+
+              {videoType === 'tutorial' && (
+                <div>
+                  <Label>Thumbnail (nur für Tutorials)</Label>
                   <Input
                     type="file"
-                    accept="video/mp4,video/webm,video/ogg,video/quicktime"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        console.log('Selected file:', {
-                          name: file.name,
-                          type: file.type,
-                          size: file.size
-                        });
-                        
-                        setVideoFile(file);
-                        toast({
-                          title: "Video ausgewählt",
-                          description: `${file.name} wurde ausgewählt`,
-                        });
-                      }
-                    }}
+                    onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+                    accept="image/*"
                   />
                 </div>
-                {videoFile && (
-                  <p className="text-sm text-muted-foreground">
-                    Ausgewählte Datei: {videoFile.name} ({Math.round(videoFile.size / 1024 / 1024)}MB)
-                  </p>
-                )}
-              </div>
+              )}
 
               <Button
                 onClick={handleVideoUpload}
-                disabled={!videoFile || !videoType || !videoTitle}
+                disabled={uploadMutation.isPending}
+                className="w-full"
               >
-                Video hochladen
+                {uploadMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Wird hochgeladen...
+                  </>
+                ) : (
+                  'Video hochladen'
+                )}
               </Button>
             </div>
           </CardContent>

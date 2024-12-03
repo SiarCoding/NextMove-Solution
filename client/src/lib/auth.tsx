@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string, portal: "admin" | "customer") => Promise<any>;
   logout: () => Promise<void>;
   refetchUser: () => Promise<void>;
+  loginResponse: any | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: async () => {},
   refetchUser: async () => {},
+  loginResponse: null,
 });
 
 interface AuthProviderProps {
@@ -52,7 +54,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (!res.ok) {
-      throw new Error("Login failed");
+      const error = await res.json();
+      throw new Error(error.error || "Login failed");
     }
 
     await queryClient.invalidateQueries({ queryKey: ["session"] });
@@ -85,6 +88,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     refetchUser,
+    loginResponse: session?.user ?? null,
   };
 
   return (
