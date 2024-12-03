@@ -5,13 +5,22 @@ import { useLocation } from "wouter";
 import ChecklistForm from "./ChecklistForm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+interface OnboardingVideo {
+  id: number;
+  title: string;
+  description: string;
+  videoUrl: string;
+  isOnboarding: boolean;
+  createdAt: string;
+}
+
 const steps = [
   {
     title: "Willkommen",
     description: "Erste Schritte im Portal",
   },
   {
-    title: "Einführungsvideo",
+    title: "Einführungsvideos",
     description: "Lernen Sie die wichtigsten Funktionen kennen",
   },
   {
@@ -22,28 +31,63 @@ const steps = [
 
 export default function OnboardingWizard() {
   const [currentStep, setCurrentStep] = useState(0);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [videoWatched, setVideoWatched] = useState<boolean[]>([]);
   const progress = (currentStep / (steps.length - 1)) * 100;
 
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
+  const { data: onboardingVideos, isLoading, error: fetchError } = useQuery<OnboardingVideo[]>({
+    queryKey: ['onboarding-videos'],
+    queryFn: async () => {
+      const response = await fetch('/api/onboarding-videos');
+      if (!response.ok) {
+        throw new Error('Failed to fetch onboarding videos');
+      }
+      const data = await response.json();
+      console.log('Fetched onboarding videos:', data);
+      setVideoWatched(new Array(data.length).fill(false));
+      return data;
+    },
+  });
+
+  const currentVideo = onboardingVideos?.[currentVideoIndex];
+  const isLastVideo = currentVideoIndex === (onboardingVideos?.length ?? 0) - 1;
+
+  const handleVideoTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.target as HTMLVideoElement;
+    if (video.currentTime / video.duration >= 0.95) {
+      const newVideoWatched = [...videoWatched];
+      newVideoWatched[currentVideoIndex] = true;
+      setVideoWatched(newVideoWatched);
+    }
+  };
+
+  const handleVideoEnded = () => {
+    const newVideoWatched = [...videoWatched];
+    newVideoWatched[currentVideoIndex] = true;
+    setVideoWatched(newVideoWatched);
+  };
+
+  const handleNextVideo = () => {
+    if (currentVideoIndex < (onboardingVideos?.length ?? 0) - 1) {
+      setCurrentVideoIndex(currentVideoIndex + 1);
+    } else {
+      setCurrentStep(2); 
+    }
+  };
+
   const handleComplete = async () => {
     try {
       setIsSubmitting(true);
-      const res = await fetch("/api/customer/onboarding/complete", {
-        method: "POST",
-        credentials: "include",
-      });
-      
-      if (!res.ok) {
-        throw new Error("Failed to complete onboarding");
-      }
-
       await queryClient.invalidateQueries({ queryKey: ["session"] });
+      // Navigiere zum Dashboard und ersetze den aktuellen Eintrag im Browser-Verlauf
       navigate("/dashboard", { replace: true });
     } catch (err) {
+      console.error("Error completing onboarding:", err);
       setError("Fehler beim Abschließen des Onboardings");
     } finally {
       setIsSubmitting(false);
@@ -72,17 +116,77 @@ export default function OnboardingWizard() {
       case 1:
         return (
           <div className="space-y-4">
-            <div className="aspect-video bg-[#1E1E20] rounded-lg" />
-            <Button
-              onClick={() => setCurrentStep(2)}
-              className="bg-[#ff5733] hover:bg-[#ff7a66] text-white"
-            >
-              Video abgeschlossen
-            </Button>
+            {onboardingVideos && onboardingVideos.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">{currentVideo?.title}</h3>
+                  <span className="text-sm text-muted-foreground">
+                    Video {currentVideoIndex + 1} von {onboardingVideos.length}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{currentVideo?.description}</p>
+                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  {currentVideo?.videoUrl && (
+                    <video
+                      key={currentVideo.videoUrl} 
+                      className="w-full h-full"
+                      controls
+                      controlsList="nodownload"
+                      preload="metadata"
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      onEnded={handleVideoEnded}
+                    >
+                      <source 
+                        src={currentVideo.videoUrl.startsWith('http') 
+                          ? currentVideo.videoUrl 
+                          : window.location.origin + currentVideo.videoUrl
+                        } 
+                        type="video/mp4"
+                      />
+                      Ihr Browser unterstützt das Video-Format nicht.
+                    </video>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleNextVideo}
+                    className="bg-[#ff5733] hover:bg-[#ff7a66] text-white w-full"
+                    disabled={!videoWatched[currentVideoIndex]}
+                  >
+                    {isLastVideo ? 'Weiter zur Checkliste' : 'Nächstes Video'}
+                  </Button>
+                  {!videoWatched[currentVideoIndex] && (
+                    <p className="text-sm text-muted-foreground text-center">
+                      Bitte schauen Sie das Video zu Ende, um fortzufahren
+                    </p>
+                  )}
+                  <div className="flex justify-center space-x-2 mt-4">
+                    {onboardingVideos?.map((_: OnboardingVideo, index: number) => (
+                      <div
+                        key={index}
+                        className={`h-2 w-2 rounded-full ${
+                          index === currentVideoIndex
+                            ? 'bg-[#ff5733]'
+                            : videoWatched[index]
+                            ? 'bg-green-500'
+                            : 'bg-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                <p className="text-muted-foreground">
+                  {isLoading ? 'Lade Videos...' : fetchError ? 'Fehler beim Laden der Videos' : 'Keine Onboarding-Videos verfügbar'}
+                </p>
+              </div>
+            )}
           </div>
         );
       case 2:
-        return <ChecklistForm onComplete={handleComplete} />;
+        return <ChecklistForm />;
       default:
         return null;
     }

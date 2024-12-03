@@ -67,11 +67,15 @@ export default function Login() {
     <div className="min-h-screen flex bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32]">
       {/* Left side */}
       <div className="flex-1 flex flex-col px-16 py-16">
-        <div className="flex items-center space-x-3 mb-20">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Shield className="h-6 w-6 text-primary" />
+        <div className="flex items-center space-x-4 mb-20">
+          <div className="h-24 w-24 rounded-full overflow-hidden ring-2 ring-primary/20 bg-black">
+            <img
+              src="/logo.jpg"
+              alt="NextMove Logo"
+              className="h-full w-full object-contain p-1"
+            />
           </div>
-          <span className="text-primary text-2xl font-bold tracking-tight">
+          <span className="text-white text-2xl font-bold tracking-tight">
             NextMove Solution
           </span>
         </div>
@@ -167,13 +171,6 @@ export default function Login() {
                 </Button>
 
                 <div className="space-y-4 text-center">
-                  <Button
-                    variant="link"
-                    className="text-muted-foreground hover:text-primary"
-                    onClick={() => navigate("/forgot-password")}
-                  >
-                    Passwort vergessen?
-                  </Button>
                   <div>
                     <Button
                       variant="link"

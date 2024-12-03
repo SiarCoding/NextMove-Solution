@@ -5,12 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
-  ActivitySquare,
-  FileVideo,
+  FileText,
   Settings,
   LogOut,
   ChevronRight,
-  Bell,
+  Phone,
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -19,33 +18,33 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { logout } = useAuth();
-  const [location, navigate] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const menuItems = [
     {
-      icon: <LayoutDashboard className="h-4 w-4" />,
       label: "Dashboard",
       path: "/admin",
+      icon: <LayoutDashboard className="h-4 w-4" />,
     },
     {
-      icon: <Users className="h-4 w-4" />,
-      label: "Kundenliste",
-      path: "/admin/customers",
+      label: "Rückrufe",
+      path: "/admin/callbacks",
+      icon: <Phone className="h-4 w-4" />,
     },
     {
-      icon: <ActivitySquare className="h-4 w-4" />,
       label: "Kundentracking",
       path: "/admin/tracking",
+      icon: <Users className="h-4 w-4" />,
     },
     {
-      icon: <FileVideo className="h-4 w-4" />,
       label: "Content",
       path: "/admin/content",
+      icon: <FileText className="h-4 w-4" />,
     },
     {
-      icon: <Settings className="h-4 w-4" />,
       label: "Einstellungen",
       path: "/admin/settings",
+      icon: <Settings className="h-4 w-4" />,
     },
   ];
 
@@ -70,15 +69,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <div className="fixed top-0 left-0 h-screen w-64 border-r bg-card/50 backdrop-blur">
+      <aside className="w-64 border-r bg-card flex flex-col">
         <div className="flex flex-col h-full">
           {/* Logo & Company Info */}
           <div className="p-6 border-b">
             {settings ? (
               <div className="flex flex-col space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
                   {settings.logoUrl ? (
                     <img
                       src={settings.logoUrl}
@@ -97,14 +96,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     </div>
                   )}
                 </div>
-                <div className="text-center">
-                  <h1 className="text-lg font-semibold text-white">{settings.companyName}</h1>
+                <div className="text-center space-y-1">
+                  <h1 className="text-base font-semibold text-white">{settings.companyName}</h1>
                   <p className="text-sm text-muted-foreground">Adminportal</p>
                 </div>
               </div>
             ) : (
               <div className="animate-pulse space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-full bg-muted"></div>
+                <div className="w-16 h-16 mx-auto rounded-full bg-muted"></div>
                 <div className="space-y-2">
                   <div className="h-5 w-32 mx-auto bg-muted rounded"></div>
                   <div className="h-4 w-24 mx-auto bg-muted rounded"></div>
@@ -114,60 +113,58 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 p-3">
-            {menuItems.map((item) => (
-              <Button
-                key={item.path}
-                variant={location === item.path ? "secondary" : "ghost"}
-                className={`w-full justify-between ${
-                  location === item.path && "bg-secondary/50"
-                }`}
-                onClick={() => navigate(item.path)}
-              >
-                <span className="flex items-center">
-                  {item.icon}
-                  {item.label}
-                </span>
-                <ChevronRight className="h-4 w-4 opacity-50" />
-              </Button>
-            ))}
+          <nav className="flex-1 p-4">
+            <div className="space-y-2">
+              {menuItems.map((item) => (
+                <Button
+                  key={item.path}
+                  variant={location === item.path ? "secondary" : "ghost"}
+                  className={`w-full justify-start px-4 py-3 ${
+                    location === item.path ? "bg-secondary/50" : ""
+                  }`}
+                  onClick={() => setLocation(item.path)}
+                >
+                  <div className="flex items-center w-full">
+                    <div className="flex items-center flex-1">
+                      <span className="flex items-center justify-center w-6">
+                        {item.icon}
+                      </span>
+                      <span className="ml-3 text-sm">{item.label}</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 opacity-50" />
+                  </div>
+                </Button>
+              ))}
+            </div>
           </nav>
 
           {/* Logout Button */}
-          <div className="p-3 border-t">
+          <div className="p-4 border-t">
             <Button
               variant="ghost"
-              className="w-full justify-between text-red-500 hover:text-red-500 hover:bg-red-500/10"
+              className="w-full justify-start px-4 py-3 text-red-500 hover:text-red-500 hover:bg-red-500/10"
               onClick={logout}
             >
-              <span className="flex items-center">
-                <LogOut className="mr-2 h-4 w-4" />
-                Abmelden
-              </span>
-              <ChevronRight className="h-4 w-4 opacity-50" />
+              <div className="flex items-center w-full">
+                <div className="flex items-center flex-1">
+                  <span className="flex items-center justify-center w-6">
+                    <LogOut className="h-4 w-4" />
+                  </span>
+                  <span className="ml-3 text-sm">Abmelden</span>
+                </div>
+                <ChevronRight className="h-4 w-4 opacity-50" />
+              </div>
             </Button>
           </div>
         </div>
-      </div>
+      </aside>
 
-      {/* Main Content Area */}
-      <div className="pl-64">
-        <div className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-16 items-center px-4 md:px-6">
-            <div className="ml-auto flex items-center space-x-4">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                  2
-                </span>
-              </Button>
-            </div>
-          </div>
-        </div>
-        <main className="container mx-auto p-6">
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col">
+        <div className="flex-1 overflow-y-auto p-6">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -19,9 +19,13 @@ import { Shield, Globe } from "lucide-react";
 const registerSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
   password: z.string().min(8, "Passwort muss mindestens 8 Zeichen lang sein"),
+  confirmPassword: z.string().min(1, "Passwort bestätigen ist erforderlich"),
   firstName: z.string().min(1, "Vorname ist erforderlich"),
   lastName: z.string().min(1, "Nachname ist erforderlich"),
   companyName: z.string().min(1, "Firmenname ist erforderlich"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwörter stimmen nicht überein",
+  path: ["confirmPassword"],
 });
 
 export default function Register() {
@@ -34,6 +38,7 @@ export default function Register() {
     defaultValues: {
       email: "",
       password: "",
+      confirmPassword: "",
       firstName: "",
       lastName: "",
       companyName: "",
@@ -46,7 +51,13 @@ export default function Register() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          companyName: values.companyName,
+        }),
       });
 
       if (!res.ok) throw new Error();
@@ -72,11 +83,15 @@ export default function Register() {
     <div className="min-h-screen flex bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32]">
       {/* Left side */}
       <div className="flex-1 flex flex-col px-16 py-16">
-        <div className="flex items-center space-x-3 mb-20">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Shield className="h-6 w-6 text-primary" />
+        <div className="flex items-center space-x-4 mb-20">
+          <div className="h-24 w-24 rounded-full overflow-hidden ring-2 ring-primary/20 bg-black">
+            <img
+              src="/logo.jpg"
+              alt="NextMove Logo"
+              className="h-full w-full object-contain p-1"
+            />
           </div>
-          <span className="text-primary text-2xl font-bold tracking-tight">
+          <span className="text-white text-2xl font-bold tracking-tight">
             NextMove Solution
           </span>
         </div>
@@ -209,8 +224,28 @@ export default function Register() {
                       <FormLabel>Passwort</FormLabel>
                       <FormControl>
                         <Input 
-                          type="password" 
+                          type="password"
                           className="bg-[#1a1b1e] border-border"
+                          placeholder="Mindestens 8 Zeichen"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Passwort bestätigen</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password"
+                          className="bg-[#1a1b1e] border-border"
+                          placeholder="Passwort wiederholen"
                           {...field} 
                         />
                       </FormControl>

@@ -14,7 +14,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  const { data: dashboardData, isLoading } = useQuery({
+  const { data: dashboardData, isLoading: isDashboardLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
       const res = await fetch("/api/customer/dashboard", {
@@ -24,16 +24,6 @@ export default function Dashboard() {
       return res.json();
     },
   });
-
-  useEffect(() => {
-    if (dashboardData?.showOnboarding) {
-      navigate("/onboarding", { replace: true });
-    }
-  }, [dashboardData, navigate]);
-
-  if (dashboardData?.showOnboarding) {
-    return null;
-  }
 
   const { data: metrics } = useQuery({
     queryKey: ["metrics", user?.id],
@@ -52,6 +42,13 @@ export default function Dashboard() {
     },
     enabled: !!user,
   });
+
+  // Nur beim ersten Login zum Onboarding navigieren
+  useEffect(() => {
+    if (dashboardData?.showOnboarding && !user?.hasCompletedOnboarding) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [dashboardData, navigate, user?.hasCompletedOnboarding]);
 
   const formattedMetrics =
     metrics?.map((m: any) => ({
@@ -72,54 +69,29 @@ export default function Dashboard() {
       { leads: 38, adSpend: 1000, clicks: 820, impressions: 11000, period: "So" },
     ];
 
+  if (isDashboardLoading) {
+    return (
+      <CustomerLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#ff5733]" />
+        </div>
+      </CustomerLayout>
+    );
+  }
+
   return (
     <CustomerLayout>
       <div className="space-y-8">
-        {/* Company Info Card */}
-        {dashboardData?.company && (
-          <Card className="bg-card/50 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="text-lg">
-                Unternehmensinformationen
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="flex items-center space-x-3">
-                  <Building2 className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Unternehmen</p>
-                    <p className="text-sm text-muted-foreground">{dashboardData.company.name}</p>
-                  </div>
-                </div>
-                {dashboardData.company.adminContact && (
-                  <>
-                    <div className="flex items-center space-x-3">
-                      <Mail className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Email</p>
-                        <p className="text-sm text-muted-foreground">{dashboardData.company.adminContact.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Phone className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Telefon</p>
-                        <p className="text-sm text-muted-foreground">{dashboardData.company.adminContact.phone}</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Metrics Section */}
         <PerformanceMetrics />
 
         {/* Progress Section */}
-        <OnboardingProgress progress={progress} />
+        <OnboardingProgress 
+          initialProgress={{
+            currentPhase: user?.currentPhase?.toString() || "onboarding",
+            completedPhases: (user?.completedPhases as string[]) || []
+          }}
+        />
       </div>
     </CustomerLayout>
   );

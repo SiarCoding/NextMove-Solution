@@ -16,10 +16,20 @@ const companySettingsSchema = z.object({
   address: z.string().min(1, "Adresse ist erforderlich"),
 });
 
+const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Aktuelles Passwort ist erforderlich"),
+  newPassword: z.string().min(8, "Neues Passwort muss mindestens 8 Zeichen lang sein"),
+  confirmPassword: z.string().min(1, "Passwort bestätigen ist erforderlich"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwörter stimmen nicht überein",
+  path: ["confirmPassword"],
+});
+
 export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -48,6 +58,15 @@ export default function Settings() {
       email: "admin@nextmove.de",
       phone: "",
       address: "",
+    },
+  });
+
+  const passwordForm = useForm<z.infer<typeof passwordChangeSchema>>({
+    resolver: zodResolver(passwordChangeSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     },
   });
 
@@ -86,6 +105,42 @@ export default function Settings() {
         description: "Einstellungen wurden aktualisiert",
       });
       setIsEditing(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: error.message,
+      });
+    },
+  });
+
+  const changePassword = useMutation({
+    mutationFn: async (values: z.infer<typeof passwordChangeSchema>) => {
+      const res = await fetch("/api/admin/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: values.currentPassword,
+          newPassword: values.newPassword,
+        }),
+        credentials: 'include'
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Passwort konnte nicht geändert werden");
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Erfolg",
+        description: "Passwort wurde erfolgreich geändert",
+      });
+      setIsChangingPassword(false);
+      passwordForm.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -354,6 +409,85 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-[#25262b] rounded-xl p-8 shadow-2xl border border-border">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Passwort ändern</h2>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsChangingPassword(!isChangingPassword);
+                  if (!isChangingPassword) {
+                    passwordForm.reset();
+                  }
+                }}
+              >
+                {isChangingPassword ? "Abbrechen" : "Passwort ändern"}
+              </Button>
+            </div>
+
+            {isChangingPassword && (
+              <form onSubmit={passwordForm.handleSubmit((values) => changePassword.mutate(values))} className="space-y-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium" htmlFor="currentPassword">
+                      Aktuelles Passwort
+                    </label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      className="bg-[#1a1b1e] border-border"
+                      {...passwordForm.register("currentPassword")}
+                    />
+                    {passwordForm.formState.errors.currentPassword && (
+                      <p className="text-red-500 text-sm">{passwordForm.formState.errors.currentPassword.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium" htmlFor="newPassword">
+                      Neues Passwort
+                    </label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      className="bg-[#1a1b1e] border-border"
+                      {...passwordForm.register("newPassword")}
+                    />
+                    {passwordForm.formState.errors.newPassword && (
+                      <p className="text-red-500 text-sm">{passwordForm.formState.errors.newPassword.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium" htmlFor="confirmPassword">
+                      Passwort bestätigen
+                    </label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      className="bg-[#1a1b1e] border-border"
+                      {...passwordForm.register("confirmPassword")}
+                    />
+                    {passwordForm.formState.errors.confirmPassword && (
+                      <p className="text-red-500 text-sm">{passwordForm.formState.errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={changePassword.isPending}
+                >
+                  {changePassword.isPending ? "Wird geändert..." : "Passwort ändern"}
+                </Button>
+              </form>
             )}
           </div>
         </div>

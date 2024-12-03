@@ -34,10 +34,23 @@ export function Navbar() {
       const res = await fetch("/api/callbacks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id, phone }),
+        body: JSON.stringify({ phone }),
       });
 
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          toast({
+            variant: "destructive",
+            title: "Zu viele Anfragen",
+            description: data.error,
+          });
+        } else {
+          throw new Error(data.error);
+        }
+        return;
+      }
 
       toast({
         title: "Erfolg",

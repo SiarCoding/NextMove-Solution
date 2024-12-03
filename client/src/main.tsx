@@ -2,8 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Switch, Route } from "wouter";
 import "./index.css";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 
 // Pages
@@ -19,9 +18,26 @@ import Settings from "./pages/admin/Settings";
 import CustomerSettings from "./pages/customer/Settings";
 import Customers from "./pages/admin/Customers";
 import Tracking from "./pages/admin/Tracking";
+import Callbacks from "./pages/admin/Callbacks";
+import Support from "./pages/Support";
+import PartnerProgram from "./pages/PartnerProgram";
+import Tutorials from "./pages/Tutorials";
 
 // Auth Provider
 import { AuthProvider, RequireAuth, RequireAdmin } from "./lib/auth.tsx";
+import { GoogleAuthProvider } from "./lib/googleDriveAuth";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      staleTime: 0,
+      gcTime: 0,
+      retry: false
+    },
+  },
+});
 
 function Router() {
   return (
@@ -36,6 +52,21 @@ function Router() {
       <Route path="/dashboard">
         <RequireAuth>
           <Dashboard />
+        </RequireAuth>
+      </Route>
+      <Route path="/tutorials">
+        <RequireAuth>
+          <Tutorials />
+        </RequireAuth>
+      </Route>
+      <Route path="/support">
+        <RequireAuth>
+          <Support />
+        </RequireAuth>
+      </Route>
+      <Route path="/partner">
+        <RequireAuth>
+          <PartnerProgram />
         </RequireAuth>
       </Route>
       <Route path="/settings">
@@ -74,6 +105,11 @@ function Router() {
           <Tracking />
         </RequireAdmin>
       </Route>
+      <Route path="/admin/callbacks">
+        <RequireAdmin>
+          <Callbacks />
+        </RequireAdmin>
+      </Route>
       <Route>404 - Seite nicht gefunden</Route>
     </Switch>
   );
@@ -83,8 +119,10 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
-        <Toaster />
+        <GoogleAuthProvider>
+          <Toaster />
+          <Router />
+        </GoogleAuthProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

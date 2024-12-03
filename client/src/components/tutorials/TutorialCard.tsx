@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import VideoPlayer from "./VideoPlayer";
 import type { Tutorial } from "@db/schema";
+import { cn } from "@/lib/utils";
 
 interface TutorialCardProps {
   tutorial: Tutorial & { completed?: boolean };
@@ -28,33 +29,58 @@ export default function TutorialCard({ tutorial, onComplete }: TutorialCardProps
 
   return (
     <>
-      <Card className="h-full">
+      <Card className={cn(
+        "h-full transition-all duration-200",
+        tutorial.completed && "bg-primary/5 border-primary/20"
+      )}>
         <CardHeader className="relative">
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 right-2 z-10">
             {tutorial.completed && (
-              <CheckCircle className="h-5 w-5 text-primary" />
+              <div className="bg-background rounded-full p-1">
+                <CheckCircle className="h-5 w-5 text-primary" />
+              </div>
             )}
           </div>
-          <div className="aspect-video bg-muted rounded-md flex items-center justify-center">
-            <PlayCircle className="h-12 w-12 text-muted-foreground" />
+          <div className={cn(
+            "aspect-video rounded-md flex items-center justify-center relative group cursor-pointer",
+            tutorial.completed ? "bg-primary/10" : "bg-muted"
+          )} onClick={() => setIsOpen(true)}>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-md flex items-center justify-center">
+              <PlayCircle className={cn(
+                "h-12 w-12 transition-all duration-200",
+                tutorial.completed ? "text-primary" : "text-muted-foreground",
+                "group-hover:scale-110 group-hover:text-white"
+              )} />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <h3 className="font-semibold">{tutorial.title}</h3>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-semibold">{tutorial.title}</h3>
+              {tutorial.completed && (
+                <span className="text-xs text-primary font-medium">Abgeschlossen</span>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground line-clamp-2">
               {tutorial.description}
             </p>
             <div className="flex items-center justify-between pt-2">
-              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+              <span className={cn(
+                "text-xs px-2 py-1 rounded",
+                tutorial.completed ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"
+              )}>
                 {tutorial.category}
               </span>
               <Button
-                variant="ghost"
+                variant={tutorial.completed ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => setIsOpen(true)}
+                className={cn(
+                  tutorial.completed && "border-primary/20 hover:border-primary/30"
+                )}
               >
-                Ansehen
+                {tutorial.completed ? "Erneut ansehen" : "Ansehen"}
               </Button>
             </div>
           </div>

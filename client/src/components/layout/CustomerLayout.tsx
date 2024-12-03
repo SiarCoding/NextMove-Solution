@@ -119,8 +119,8 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 key={item.path}
                 variant={location === item.path ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-between hover:text-primary hover:bg-primary/10 transition-colors",
-                  location === item.path && "bg-primary/20 text-primary hover:bg-primary/20"
+                  "w-full justify-between hover:text-white hover:bg-primary/10 transition-colors",
+                  location === item.path && "bg-primary/20 text-white hover:bg-primary/20 hover:text-white"
                 )}
                 onClick={() => navigate(item.path)}
               >

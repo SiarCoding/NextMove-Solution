@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const checklistSchema = z.object({
   paymentOption: z.string().min(1, "Zahlungsoption ist erforderlich"),
@@ -30,95 +31,80 @@ const checklistSchema = z.object({
   }),
 });
 
-export type ChecklistFormProps = {
-  onComplete: () => void;
-};
-
-export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
+export default function ChecklistForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof checklistSchema>>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
-      paymentOption: "Kreditkarte",
-      taxId: "DE123456789",
-      domain: "example.com",
-      targetAudience: "B2B",
-      companyInfo: "Test Company",
+      paymentOption: "",
+      taxId: "",
+      domain: "",
+      targetAudience: "",
+      companyInfo: "",
       webDesign: {
-        colorScheme: "#FF5733",
+        colorScheme: "",
         logoUrl: "",
       },
       marketResearch: {
-        competitors: "Competitor A, Competitor B",
+        competitors: "",
       },
       legalInfo: {
-        address: "Test Street 1",
-        impressum: "Test Impressum",
-        privacy: "Test Privacy",
+        address: "",
+        impressum: "",
+        privacy: "",
       },
     },
   });
 
-  const handleSubmit = form.handleSubmit(async (values) => {
+  const onSubmit = async (data: z.infer<typeof checklistSchema>) => {
     try {
-      if (!user) {
-        throw new Error("Nicht authentifiziert");
-      }
-
-      setError(null);
       setIsSubmitting(true);
-      
-      console.log("Submitting form with values:", values);
-      
-      const res = await fetch("/api/onboarding/checklist", {
+      const response = await fetch("/api/checklist", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify(data),
         credentials: "include",
-        body: JSON.stringify(values),
       });
 
-      console.log("Server response status:", res.status);
-
-      const data = await res.json();
-      console.log("Server response data:", data);
-
-      if (!res.ok) {
-        throw new Error(data.error || "Fehler beim Speichern der Checkliste");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Fehler beim Speichern der Daten");
       }
 
-      if (data.success) {
-        // Invalidate queries to refresh data
-        await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-        
-        // Call onComplete and navigate
-        onComplete();
-        navigate("/dashboard", { replace: true });
-      } else {
-        throw new Error("Unerwarteter Serverfehler");
-      }
+      // Invalidate queries to refresh user data
+      await queryClient.invalidateQueries({ queryKey: ["session"] });
+
+      toast({
+        title: "Erfolgreich gespeichert",
+        description: "Ihre Daten wurden erfolgreich gespeichert.",
+        variant: "default",
+      });
+
+      // Navigate directly to dashboard and replace history
+      navigate("/dashboard", { replace: true });
     } catch (error) {
-      console.error("Fehler beim Speichern:", error);
-      setError(error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten");
-      
-      // If not authenticated, redirect to login
-      if (error instanceof Error && error.message === "Nicht authentifiziert") {
-        navigate("/", { replace: true });
-      }
+      console.error("Submission error:", error);
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
-  });
+  };
 
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Payment Information Column */}
         <div className="grid grid-cols-2 gap-8">
           <div className="space-y-6">
@@ -292,17 +278,16 @@ export default function ChecklistForm({ onComplete }: ChecklistFormProps) {
         </div>
 
         <div className="flex flex-col items-end gap-4 mt-6">
-          {error && (
-            <div className="text-red-500 text-sm">{error}</div>
-          )}
-          <Button
-            type="submit"
-            className="bg-[#ff5733] hover:bg-[#ff7a66] text-white shadow-lg transition-colors px-6 w-full md:w-auto"
+          <Button 
+            type="submit" 
+            className="w-full bg-[#ff5733] hover:bg-[#ff7a66] text-white"
             disabled={isSubmitting}
-            onClick={() => console.log("Button clicked")}
           >
-            {isSubmitting ? "Wird gespeichert..." : "Speichern & Fortfahren"}
+            {isSubmitting ? "Wird gespeichert..." : "Speichern und fortfahren"}
           </Button>
+          {error && (
+            <div className="text-red-500 text-sm text-center">{error}</div>
+          )}
         </div>
       </form>
     </Form>

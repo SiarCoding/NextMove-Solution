@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { type User } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import AdminLayout from "../../components/layout/AdminLayout";
 import { RequireAdmin } from "@/lib/auth";
@@ -11,7 +10,18 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { Users, UserCheck, Video, PhoneCall } from "lucide-react";
+import { Users, UserCheck, Video, PhoneCall, Building2, Mail, Calendar } from "lucide-react";
+
+// Define the PendingUser type
+interface PendingUser {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  companyId: number | null;
+  createdAt: Date;
+  companyName?: string;
+}
 
 function AdminDashboard() {
   const [, navigate] = useLocation();
@@ -48,14 +58,14 @@ function AdminDashboard() {
       if (!res.ok) {
         throw new Error("Failed to fetch pending users");
       }
-      return res.json();
+      return res.json() as Promise<PendingUser[]>;
     }
   });
 
   const approveUser = useMutation({
     mutationFn: async (userId: number) => {
       const res = await fetch(`/api/admin/users/${userId}/approve`, {
-        method: "POST",
+        method: "PATCH",
         credentials: "include"
       });
       if (!res.ok) {
@@ -69,6 +79,13 @@ function AdminDashboard() {
       toast({
         title: "Erfolg",
         description: "Benutzer wurde freigegeben"
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Benutzer konnte nicht freigegeben werden"
       });
     }
   });
@@ -113,7 +130,7 @@ function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats?.activeUsers || 0}</div>
               <p className="text-xs text-muted-foreground">
-                Letzte 24 Stunden
+                Aktiv in den letzten 24h
               </p>
             </CardContent>
           </Card>
@@ -146,11 +163,15 @@ function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {pendingCallbacks?.length || 0}
+                {stats?.pendingCallbacks || 0}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Unbearbeitete Anfragen
-              </p>
+              <Button
+                variant="link"
+                className="p-0"
+                onClick={() => navigate("/admin/callbacks")}
+              >
+                Rückrufe verwalten
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -158,18 +179,47 @@ function AdminDashboard() {
         <div className="mt-8">
           <h2 className="text-lg font-semibold mb-4">Ausstehende Freigaben</h2>
           <div className="bg-card rounded-lg border shadow-sm">
-            {pendingUsers?.map((user: User) => (
-              <div key={user.id} className="p-4 border-b last:border-b-0 flex justify-between items-center">
-                <div>
-                  <p className="font-medium">{user.firstName} {user.lastName}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+            {pendingUsers?.map((user: PendingUser) => (
+              <div key={user.id} className="p-4 border-b last:border-b-0">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <p className="font-medium">{user.firstName} {user.lastName}</p>
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  </div>
+                  <Button 
+                    onClick={() => approveUser.mutate(user.id)}
+                    disabled={approveUser.isPending}
+                  >
+                    Freigeben
+                  </Button>
                 </div>
-                <Button 
-                  onClick={() => approveUser.mutate(user.id)}
-                  disabled={approveUser.isPending}
-                >
-                  Freigeben
-                </Button>
+                {user.companyId && (
+                  <div className="mt-2 grid gap-4 md:grid-cols-3 bg-muted/50 p-3 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Unternehmen</p>
+                        <p className="text-sm text-muted-foreground">{user.companyName}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Geschäftlich</p>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Registriert</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(user.createdAt).toLocaleDateString('de-DE')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             {pendingUsers?.length === 0 && (

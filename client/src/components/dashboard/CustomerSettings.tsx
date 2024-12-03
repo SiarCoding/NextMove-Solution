@@ -30,6 +30,15 @@ const customerSettingsSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
 });
 
+const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Aktuelles Passwort ist erforderlich"),
+  newPassword: z.string().min(8, "Neues Passwort muss mindestens 8 Zeichen lang sein"),
+  confirmPassword: z.string().min(1, "Passwort bestätigen ist erforderlich"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwörter stimmen nicht überein",
+  path: ["confirmPassword"],
+});
+
 export function CustomerSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -37,6 +46,7 @@ export function CustomerSettings() {
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [uploading, setUploading] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const { user, refetchUser } = useAuth();
 
   // Sofortiges Update des Bildes in allen Komponenten
@@ -60,6 +70,15 @@ export function CustomerSettings() {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       email: user?.email || "",
+    },
+  });
+
+  const passwordForm = useForm<z.infer<typeof passwordChangeSchema>>({
+    resolver: zodResolver(passwordChangeSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     },
   });
 
@@ -134,6 +153,42 @@ export function CustomerSettings() {
         variant: "destructive",
         title: "Fehler",
         description: error.message || "Fehler beim Hochladen des Bildes",
+      });
+    },
+  });
+
+  const changePassword = useMutation({
+    mutationFn: async (values: z.infer<typeof passwordChangeSchema>) => {
+      const res = await fetch("/api/customer/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: values.currentPassword,
+          newPassword: values.newPassword,
+        }),
+        credentials: 'include'
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Passwort konnte nicht geändert werden");
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Erfolg",
+        description: "Passwort wurde erfolgreich geändert",
+      });
+      setIsChangingPassword(false);
+      passwordForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: error.message,
       });
     },
   });
@@ -305,6 +360,106 @@ export function CustomerSettings() {
             </form>
           </Form>
         </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Passwort ändern</CardTitle>
+              <CardDescription>
+                Ändern Sie Ihr Passwort für mehr Sicherheit
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsChangingPassword(!isChangingPassword);
+                if (!isChangingPassword) {
+                  passwordForm.reset();
+                }
+              }}
+            >
+              {isChangingPassword ? "Abbrechen" : "Passwort ändern"}
+            </Button>
+          </div>
+        </CardHeader>
+        {isChangingPassword && (
+          <CardContent>
+            <Form {...passwordForm}>
+              <form onSubmit={passwordForm.handleSubmit((values) => changePassword.mutate(values))} className="space-y-4">
+                <FormField
+                  control={passwordForm.control}
+                  name="currentPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Aktuelles Passwort</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          className="bg-background"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={passwordForm.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Neues Passwort</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          className="bg-background"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={passwordForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Passwort bestätigen</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          className="bg-background"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={changePassword.isPending}
+                >
+                  {changePassword.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Wird geändert...
+                    </>
+                  ) : (
+                    "Passwort ändern"
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        )}
       </Card>
     </div>
   );
