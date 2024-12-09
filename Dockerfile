@@ -6,6 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY client/package*.json client/
+COPY tailwind.config.ts ./
+COPY postcss.config.js ./
 
 # Install root dependencies
 RUN npm install
