@@ -3,30 +3,36 @@ FROM node:20-alpine as builder
 
 WORKDIR /app
 
-# Copy all source code first
+# Copy package files first
+COPY package*.json ./
+COPY client/package*.json ./client/
+
+# Install dependencies
+RUN npm ci
+RUN cd client && npm ci
+
+# Copy source code
 COPY . .
-
-# Install root dependencies
-RUN npm install
-
-# Install client dependencies and build client
-RUN cd client && npm install && npm run build
 
 # Build server
 RUN npm run build:server
+
+# Build client separately
+WORKDIR /app/client
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy built assets
+# Copy built assets and package files
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/client/dist ./client/dist
-COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/package.json ./package.json
 
-# Install production dependencies only
-RUN npm install --production
+# Install production dependencies
+RUN npm ci --only=production
 
 # Set environment variables
 ENV NODE_ENV=production
