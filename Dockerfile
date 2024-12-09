@@ -3,14 +3,18 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy all source code first to ensure config files are available
-COPY . .
+# Copy package files first
+COPY package*.json ./
+COPY client/package*.json ./client/
 
-# Install root dependencies
+# Install dependencies at root level
 RUN npm install --include=dev
 
 # Install client dependencies
 RUN cd client && npm install --include=dev
+
+# Copy the rest of the application
+COPY . .
 
 # Build client and server
 RUN npm run build
@@ -27,7 +31,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.env.production ./.env
 
 # Install production dependencies
-RUN npm install --production
+RUN npm install --omit=dev
 
 # Set environment variables
 ENV NODE_ENV=production
