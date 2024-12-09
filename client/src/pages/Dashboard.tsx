@@ -30,7 +30,11 @@ export default function Dashboard() {
     queryKey: ["metrics", user?.id],
     queryFn: async () => {
       const res = await fetch(`/api/metrics/${user?.id}`);
-      return res.json();
+      if (!res.ok) {
+        throw new Error('Failed to fetch metrics');
+      }
+      const data = await res.json();
+      return Array.isArray(data) ? data : [data];
     },
     enabled: !!user,
   });
@@ -48,24 +52,27 @@ export default function Dashboard() {
     return null;
   }
 
-  const formattedMetrics =
-    metrics?.map((m: any) => ({
-      leads: m.leads || Math.floor(Math.random() * 20) + 30,
-      adSpend: m.adSpend || Math.floor(Math.random() * 500) + 800,
-      clicks: m.clicks || Math.floor(Math.random() * 200) + 800,
-      impressions: m.impressions || Math.floor(Math.random() * 3000) + 10000,
-      period: new Date(m.date).toLocaleDateString("de-DE", {
-        weekday: "short",
-      }),
-    })) || [
-      { leads: 45, adSpend: 1200, clicks: 890, impressions: 12000, period: "Mo" },
-      { leads: 52, adSpend: 1350, clicks: 950, impressions: 13500, period: "Di" },
-      { leads: 48, adSpend: 1150, clicks: 920, impressions: 12800, period: "Mi" },
-      { leads: 55, adSpend: 1400, clicks: 980, impressions: 14000, period: "Do" },
-      { leads: 50, adSpend: 1250, clicks: 940, impressions: 13200, period: "Fr" },
-      { leads: 42, adSpend: 1100, clicks: 860, impressions: 11800, period: "Sa" },
-      { leads: 38, adSpend: 1000, clicks: 820, impressions: 11000, period: "So" },
-    ];
+  const defaultMetrics = [
+    { leads: 45, adSpend: 1200, clicks: 890, impressions: 12000, period: "Mo" },
+    { leads: 52, adSpend: 1350, clicks: 950, impressions: 13500, period: "Di" },
+    { leads: 48, adSpend: 1150, clicks: 920, impressions: 12800, period: "Mi" },
+    { leads: 55, adSpend: 1400, clicks: 980, impressions: 14000, period: "Do" },
+    { leads: 50, adSpend: 1250, clicks: 940, impressions: 13200, period: "Fr" },
+    { leads: 42, adSpend: 1100, clicks: 860, impressions: 11800, period: "Sa" },
+    { leads: 38, adSpend: 1000, clicks: 820, impressions: 11000, period: "So" },
+  ];
+
+  const formattedMetrics = metrics?.length
+    ? metrics.map((m: any) => ({
+        leads: m.leads || Math.floor(Math.random() * 20) + 30,
+        adSpend: m.adSpend || Math.floor(Math.random() * 500) + 800,
+        clicks: m.clicks || Math.floor(Math.random() * 200) + 800,
+        impressions: m.impressions || Math.floor(Math.random() * 3000) + 10000,
+        period: new Date(m.date).toLocaleDateString("de-DE", {
+          weekday: "short",
+        }),
+      }))
+    : defaultMetrics;
 
   if (isDashboardLoading) {
     return (
@@ -84,12 +91,21 @@ export default function Dashboard() {
         <PerformanceMetrics />
 
         {/* Progress Section */}
-        <OnboardingProgress 
-          initialProgress={{
-            currentPhase: user?.currentPhase?.toString() || "onboarding",
-            completedPhases: (user?.completedPhases as string[]) || []
-          }}
-        />
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Dein Roadmap</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <OnboardingProgress 
+              initialProgress={{
+                currentPhase: user?.currentPhase?.toString() || "onboarding",
+                completedPhases: (user?.completedPhases as string[]) || []
+              }}
+            />
+          </CardContent>
+        </Card>
       </div>
     </CustomerLayout>
   );

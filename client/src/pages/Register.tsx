@@ -80,57 +80,49 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32]">
+    <div className="flex h-screen bg-black">
       {/* Left side */}
-      <div className="flex-1 flex flex-col px-16 py-16">
-        <div className="flex items-center space-x-4 mb-20">
-          <div className="h-24 w-24 rounded-full overflow-hidden ring-2 ring-primary/20 bg-black">
-            <img
-              src="/logo.jpg"
-              alt="NextMove Logo"
-              className="h-full w-full object-contain p-1"
-            />
-          </div>
-          <span className="text-white text-2xl font-bold tracking-tight">
-            NextMove Solution
-          </span>
-        </div>
-
-        <div className="mb-20">
+      <div className="hidden lg:flex lg:flex-1 flex-col p-12">
+        <div className="mb-auto">
+          <img
+            src="/logo.jpg"
+            alt="Logo"
+            className="h-24 w-auto mb-8"
+          />
           <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">
             Willkommen zum Kundenportal
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Erstellen Sie einen neuen Account
+          <p className="text-lg text-muted-foreground mb-12">
+            Registrieren Sie sich, um loszulegen
           </p>
-        </div>
 
-        <div className="space-y-6">
-          <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
-            <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
-              <Shield className="h-6 w-6 text-primary" />
+          <div className="space-y-4">
+            <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
+              <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
+                <Shield className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-base font-medium text-foreground mb-1">
+                  Sicherer Zugang
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Ihre Daten sind bei uns sicher
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-medium text-foreground mb-1">
-                Sicherer Zugang
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Ihre Daten sind bei uns sicher
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
-            <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
-              <Globe className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-base font-medium text-foreground mb-1">
-                24/7 Verfügbar
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Zugriff rund um die Uhr
-              </p>
+            <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
+              <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
+                <Globe className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-base font-medium text-foreground mb-1">
+                  24/7 Verfügbar
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Zugriff rund um die Uhr
+                </p>
+              </div>
             </div>
           </div>
         </div>
