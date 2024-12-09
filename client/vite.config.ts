@@ -17,6 +17,23 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: true,
-    chunkSizeWarningLimit: 1600
+    chunkSizeWarningLimit: 1600,
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': ['react', 'react-dom'],
+          'styles': ['./src/index.css']
+        }
+      }
+    }
+  },
+  css: {
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    }
   }
-})
+});

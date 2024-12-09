@@ -30,9 +30,15 @@
 
     --border: 0 0% 13%;
     --input: 0 0% 13%;
-    --ring: 0 0% 83.1%;
+    --ring: 24 100% 50%;
 
     --radius: 0.5rem;
+  }
+}
+
+@layer components {
+  .bg-gradient {
+    background: linear-gradient(to bottom right, #ff6b00, #ff8533);
   }
 }
 
