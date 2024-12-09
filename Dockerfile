@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and config
 COPY package*.json ./
 COPY client/package*.json client/
 COPY tailwind.config.ts ./
@@ -37,8 +37,8 @@ RUN npm install --production
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=5000
 
-EXPOSE 3000
+EXPOSE 5000
 
 CMD ["npm", "start"]

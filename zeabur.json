@@ -7,11 +7,11 @@
     "startCommand": "npm start",
     "healthCheck": {
       "path": "/health",
-      "port": 3000
+      "port": 5000
     },
     "env": {
       "NODE_ENV": "production",
-      "PORT": "3000"
+      "PORT": "5000"
     }
   }
 }
