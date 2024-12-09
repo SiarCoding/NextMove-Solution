@@ -3,20 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files and config
-COPY package*.json ./
-COPY client/package*.json client/
-COPY tailwind.config.ts ./
-COPY postcss.config.js ./
+# Copy all source code first to ensure config files are available
+COPY . .
 
 # Install root dependencies
 RUN npm install --include=dev
 
 # Install client dependencies
 RUN cd client && npm install --include=dev
-
-# Copy source code
-COPY . .
 
 # Build client and server
 RUN npm run build
