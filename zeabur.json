@@ -1,0 +1,16 @@
+{
+  "build": {
+    "command": "npm install && npm run build",
+    "output": "dist"
+  },
+  "deploy": {
+    "startCommand": "npm run start",
+    "healthCheck": {
+      "path": "/health",
+      "port": 3000
+    },
+    "env": {
+      "NODE_ENV": "production"
+    }
+  }
+}

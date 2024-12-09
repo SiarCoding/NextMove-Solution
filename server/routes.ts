@@ -252,7 +252,7 @@ export function registerRoutes(app: Express) {
   });
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {
-    req.session.destroy((err) => {
+    req.session.destroy((err: Error | null) => {
       if (err) {
         return res.status(500).json({ error: "Abmeldung fehlgeschlagen" });
       }

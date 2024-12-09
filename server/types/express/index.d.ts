@@ -1,17 +1,17 @@
+import 'express-session';
 import { Session } from 'express-session';
-import { User } from './types';
 
 declare module 'express-session' {
   interface SessionData {
-    userId?: number;
+    user?: {
+      id: number;
+      email: string;
+    };
   }
 }
 
 declare module 'express' {
   interface Request {
-    session: Session & {
-      userId?: number;
-    };
-    user?: User;
+    session: Session & Partial<SessionData>;
   }
 }
