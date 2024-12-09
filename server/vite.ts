@@ -12,15 +12,14 @@ export async function setupVite(app: Express, server: Server) {
   }
   
   const { createServer: createViteServer } = await import('vite');
-  const viteConfig = await import('../vite.config');
-
+  const { default: react } = await import('@vitejs/plugin-react');
+  
   const vite = await createViteServer({
-    ...viteConfig.default,
-    configFile: false,
     server: {
       middlewareMode: true,
       hmr: { server },
     },
+    plugins: [react()],
     appType: "custom",
   });
 
@@ -56,8 +55,15 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // Serve static files
   app.use(express.static(clientDist));
+
+  // Always return index.html for any other route to support client-side routing
   app.get("*", (req, res) => {
+    // Skip API routes
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API route not found' });
+    }
     res.sendFile(path.join(clientDist, "index.html"));
   });
 }
