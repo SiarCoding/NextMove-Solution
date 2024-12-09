@@ -1,4 +1,5 @@
 import { Request } from "express";
+import 'express-session';
 import { type InferModel } from "drizzle-orm";
 import { users } from "@db/schema";
 
@@ -13,8 +14,8 @@ declare global {
   }
 }
 
-declare module "express-session" {
-  interface SessionData {
+declare module 'express-session' {
+  interface Session {
     userId?: number;
   }
 }
