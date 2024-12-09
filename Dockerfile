@@ -6,12 +6,14 @@ WORKDIR /app
 # Copy all source code first
 COPY . .
 
-# Install dependencies
+# Install root dependencies
 RUN npm install
-RUN cd client && npm install
 
-# Build the application
-RUN npm run build
+# Install client dependencies and build client
+RUN cd client && npm install && npm run build
+
+# Build server
+RUN npm run build:server
 
 # Production stage
 FROM node:20-alpine
@@ -22,7 +24,9 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/client/dist ./client/dist
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
+
+# Install production dependencies only
+RUN npm install --production
 
 # Set environment variables
 ENV NODE_ENV=production
