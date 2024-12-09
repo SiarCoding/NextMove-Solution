@@ -1,7 +1,7 @@
 import { Request } from "express";
-import 'express-session';
 import { type InferModel } from "drizzle-orm";
 import { users } from "@db/schema";
+import 'express-session';
 
 // Define the User type from the schema
 export type User = InferModel<typeof users, "select">;
@@ -15,7 +15,7 @@ declare global {
 }
 
 declare module 'express-session' {
-  interface Session {
+  interface SessionData {
     userId?: number;
   }
 }
