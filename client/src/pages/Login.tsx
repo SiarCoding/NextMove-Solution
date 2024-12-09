@@ -168,44 +168,44 @@ export default function Login() {
   return (
     <div className="flex h-screen bg-black">
       {/* Left side */}
-      <div className="hidden lg:flex lg:flex-1 flex-col p-12">
+      <div className="hidden lg:flex lg:flex-1 flex-col p-12 bg-black">
         <div className="mb-auto">
           <img
             src="/logo.jpg"
             alt="Logo"
             className="h-24 w-auto mb-8"
           />
-          <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">
+          <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             Willkommen zum Kundenportal
           </h1>
-          <p className="text-lg text-muted-foreground mb-12">
+          <p className="text-lg text-gray-400 mb-12">
             Melden Sie sich an, um fortzufahren
           </p>
 
           <div className="space-y-4">
-            <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
-              <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
-                <Shield className="h-6 w-6 text-primary" />
+            <div className="flex items-center space-x-5 bg-[#25262b] p-5 rounded-xl border border-[#2e2f34] hover:bg-[#2a2b30] transition-all duration-300">
+              <div className="flex-shrink-0 p-3 bg-[#ff6b00]/10 rounded-lg">
+                <Shield className="h-6 w-6 text-[#ff6b00]" />
               </div>
               <div>
-                <h3 className="text-base font-medium text-foreground mb-1">
+                <h3 className="text-base font-medium text-white mb-1">
                   Sicherer Zugang
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-400">
                   Ihre Daten sind bei uns sicher
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-5 bg-[#25262b]/50 p-5 rounded-xl border border-border hover:bg-[#25262b]/70 transition-all duration-300">
-              <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
-                <Globe className="h-6 w-6 text-primary" />
+            <div className="flex items-center space-x-5 bg-[#25262b] p-5 rounded-xl border border-[#2e2f34] hover:bg-[#2a2b30] transition-all duration-300">
+              <div className="flex-shrink-0 p-3 bg-[#ff6b00]/10 rounded-lg">
+                <Globe className="h-6 w-6 text-[#ff6b00]" />
               </div>
               <div>
-                <h3 className="text-base font-medium text-foreground mb-1">
+                <h3 className="text-base font-medium text-white mb-1">
                   24/7 Verfügbar
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-400">
                   Zugriff rund um die Uhr
                 </p>
               </div>
@@ -214,98 +214,81 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right side - Login Form */}
-      <div className="flex-1 flex flex-col justify-center px-12">
-        <div className="w-full max-w-md mx-auto">
-          <div className="bg-[#25262b] rounded-xl p-8 shadow-2xl border border-border">
-            {!showResetForm ? (
-              <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={loginForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>E-Mail</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="name@firma.de" 
-                            className="bg-[#1a1b1e] border-border" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+      {/* Right side */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-md space-y-8">
+          {showResetForm ? (
+            <ResetPasswordForm onCancel={() => setShowResetForm(false)} setShowResetForm={setShowResetForm} />
+          ) : (
+            <Form {...loginForm}>
+              <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={loginForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">E-Mail</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="name@firma.de"
+                          className="bg-[#25262b] border-[#2e2f34] text-white"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <FormField
-                    control={loginForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Passwort</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            className="bg-[#1a1b1e] border-border"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <FormField
+                  control={loginForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Passwort</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          className="bg-[#25262b] border-[#2e2f34] text-white"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <div className="flex items-center justify-between">
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="text-sm"
-                      onClick={() => setShowResetForm(true)}
-                    >
-                      Passwort vergessen?
-                    </Button>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-[#ff6b00] hover:text-[#ff6b00]/80 px-0"
+                    onClick={() => setShowResetForm(true)}
+                  >
+                    Passwort vergessen?
+                  </Button>
+                </div>
 
+                <div className="space-y-4">
                   <Button
                     type="submit"
-                    className="w-full bg-primary hover:bg-primary/90"
+                    className="w-full bg-[#ff6b00] hover:bg-[#ff6b00]/90 text-white"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Wird geladen..." : "Anmelden"}
+                    Anmelden
                   </Button>
-
-                  <div className="space-y-4 text-center">
-                    <div>
-                      <Button
-                        variant="link"
-                        onClick={() => navigate("/register")}
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        Noch kein Konto? Jetzt registrieren
-                      </Button>
-                    </div>
-                    <div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate("/admin/login")}
-                        className="text-muted-foreground hover:text-primary text-sm"
-                      >
-                        Zum Adminportal
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </Form>
-            ) : (
-              <ResetPasswordForm 
-                onCancel={() => setShowResetForm(false)} 
-                setShowResetForm={setShowResetForm}
-              />
-            )}
-          </div>
+                  
+                  <p className="text-center text-gray-400">
+                    Noch kein Konto?{" "}
+                    <a href="/register" className="text-[#ff6b00] hover:text-[#ff6b00]/80">
+                      Jetzt registrieren
+                    </a>
+                  </p>
+                </div>
+              </form>
+            </Form>
+          )}
         </div>
       </div>
     </div>
