@@ -3,16 +3,12 @@ FROM node:20-alpine as builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY client/package*.json ./client/
+# Copy all source code first
+COPY . .
 
 # Install dependencies
 RUN npm install
 RUN cd client && npm install
-
-# Copy source code
-COPY . .
 
 # Build the application
 RUN npm run build
@@ -24,6 +20,7 @@ WORKDIR /app
 
 # Copy built assets
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/client/dist ./client/dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
