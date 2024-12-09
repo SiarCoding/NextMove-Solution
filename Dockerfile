@@ -17,7 +17,7 @@ RUN cd client && npm install
 COPY . .
 
 # Build client and server
-RUN npm run build:client && npm run build:server
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine
@@ -26,10 +26,7 @@ WORKDIR /app
 
 # Copy built assets and necessary files
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/client/dist ./client/dist
-COPY --from=builder /app/db ./db
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/.env.production ./.env
 
 # Install production dependencies
 RUN npm install --omit=dev
@@ -40,4 +37,4 @@ ENV PORT=5000
 
 EXPOSE 5000
 
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]
