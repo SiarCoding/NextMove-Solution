@@ -10,10 +10,10 @@ COPY tailwind.config.ts ./
 COPY postcss.config.js ./
 
 # Install root dependencies
-RUN npm install
+RUN npm install --include=dev
 
 # Install client dependencies
-RUN cd client && npm install
+RUN cd client && npm install --include=dev
 
 # Copy source code
 COPY . .
