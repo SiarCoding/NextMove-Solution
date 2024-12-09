@@ -8,16 +8,16 @@ COPY package*.json ./
 COPY client/package*.json ./client/
 
 # Install dependencies at root level
-RUN npm install --include=dev
+RUN npm install
 
 # Install client dependencies
-RUN cd client && npm install --include=dev
+RUN cd client && npm install
 
 # Copy the rest of the application
 COPY . .
 
 # Build client and server
-RUN npm run build
+RUN npm run build:client && npm run build:server
 
 # Production stage
 FROM node:20-alpine
