@@ -27,6 +27,7 @@ WORKDIR /app
 # Copy built assets and necessary files
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/client/dist ./client/dist
+COPY --from=builder /app/db ./db
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.env.production ./.env
 

@@ -1,7 +1,7 @@
 import { type Express, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import { eq, desc, gte, inArray, and, sql, gt } from "drizzle-orm";
-import { db } from "db";
+import { db } from "../db";
 import { 
   users,
   tutorials,
