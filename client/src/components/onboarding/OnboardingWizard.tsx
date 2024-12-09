@@ -11,6 +11,7 @@ interface OnboardingVideo {
   title: string;
   description: string;
   videoUrl: string;
+  thumbnailUrl: string;
   isOnboarding: boolean;
   createdAt: string;
 }
@@ -37,6 +38,7 @@ export default function OnboardingWizard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [videoWatched, setVideoWatched] = useState<boolean[]>([]);
+  const [videoStarted, setVideoStarted] = useState(false);
   const progress = (currentStep / (steps.length - 1)) * 100;
 
   const [, navigate] = useLocation();
@@ -84,6 +86,7 @@ export default function OnboardingWizard() {
   const handleNextVideo = () => {
     if (currentVideoIndex < (onboardingVideos?.length ?? 0) - 1) {
       setCurrentVideoIndex(currentVideoIndex + 1);
+      setVideoStarted(false); // Reset videoStarted state for the next video
     } else {
       setCurrentStep(2); 
     }
@@ -155,17 +158,47 @@ export default function OnboardingWizard() {
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">{currentVideo?.description}</p>
-                <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                  {currentVideo?.videoUrl && (
-                    <video
-                      key={currentVideo.videoUrl} 
-                      className="w-full h-full"
-                      controls
-                      controlsList="nodownload"
-                      preload="metadata"
-                      onTimeUpdate={handleVideoTimeUpdate}
-                      onEnded={handleVideoEnded}
+                <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
+                  {currentVideo?.thumbnailUrl && !videoStarted && (
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center cursor-pointer z-10"
+                      style={{ 
+                        backgroundImage: `url(${currentVideo.thumbnailUrl.startsWith('http') 
+                          ? currentVideo.thumbnailUrl 
+                          : window.location.origin + currentVideo.thumbnailUrl})`
+                      }}
+                      onClick={() => {
+                        const videoElement = document.querySelector('video');
+                        if (videoElement) {
+                          videoElement.play();
+                          setVideoStarted(true);
+                        }
+                      }}
                     >
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 bg-[#ff5733] rounded-full flex items-center justify-center">
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            viewBox="0 0 24 24" 
+                            fill="white" 
+                            className="w-8 h-8"
+                          >
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <video
+                    key={currentVideo?.videoUrl} 
+                    className="w-full h-full"
+                    controls={videoStarted}
+                    controlsList="nodownload"
+                    preload="metadata"
+                    onTimeUpdate={handleVideoTimeUpdate}
+                    onEnded={handleVideoEnded}
+                  >
+                    {currentVideo?.videoUrl && (
                       <source 
                         src={currentVideo.videoUrl.startsWith('http') 
                           ? currentVideo.videoUrl 
@@ -173,9 +206,9 @@ export default function OnboardingWizard() {
                         } 
                         type="video/mp4"
                       />
-                      Ihr Browser unterstützt das Video-Format nicht.
-                    </video>
-                  )}
+                    )}
+                    Ihr Browser unterstützt das Video-Format nicht.
+                  </video>
                 </div>
                 <div className="space-y-2">
                   <Button

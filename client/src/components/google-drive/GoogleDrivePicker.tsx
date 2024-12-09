@@ -93,7 +93,7 @@ export function GoogleDrivePicker({ onFileSelect, buttonLabel = "Datei aus Googl
 
   if (!isInitialized) {
     return (
-      <Button disabled>
+      <Button disabled className="bg-primary hover:bg-primary/90 text-primary-foreground w-fit">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         Google API wird initialisiert...
       </Button>
@@ -104,17 +104,14 @@ export function GoogleDrivePicker({ onFileSelect, buttonLabel = "Datei aus Googl
     <Button 
       onClick={openPicker}
       disabled={isPickerLoading}
-      variant="outline"
-      className="w-full"
+      className="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 w-fit"
     >
       {isPickerLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Lädt...
-        </>
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        buttonLabel
+        <img src="https://www.google.com/favicon.ico" alt="Google Drive" className="h-4 w-4" />
       )}
+      {buttonLabel}
     </Button>
   );
 }

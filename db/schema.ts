@@ -1,4 +1,5 @@
 import { pgTable, text, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -32,6 +33,8 @@ export const users = pgTable("users", {
   googleRefreshToken: text("google_refresh_token"),
   googleTokenExpiry: timestamp("google_token_expiry"),
   googleDriveConnected: boolean("google_drive_connected").default(false).notNull(),
+  metaAccessToken: text("meta_access_token"),
+  metaConnected: boolean("meta_connected").default(false).notNull(),
 });
 
 export const tutorials = pgTable("tutorials", {
@@ -92,20 +95,49 @@ export const customerChecklist = pgTable("customer_checklist", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: integer("user_id").references(() => users.id).notNull(),
   paymentOption: text("payment_option").notNull(),
+  paymentMethod: text("payment_method"),
   taxId: text("tax_id").notNull(),
   domain: text("domain").notNull(),
-  targetAudience: text("target_audience").notNull(),
-  companyInfo: text("company_info").notNull(),
-  webDesign: jsonb("web_design").default({}).notNull(),
-  marketResearch: jsonb("market_research").default({}).notNull(),
-  legalInfo: jsonb("legal_info").default({}).notNull(),
-  target_group_gender: text("target_group_gender").default('').notNull(),
-  target_group_age: text("target_group_age").default('').notNull(),
-  target_group_location: text("target_group_location").default('').notNull(),
-  target_group_interests: jsonb("target_group_interests").default([]).notNull(),
-  idealCustomerProfile: jsonb("ideal_customer_profile").default({}).notNull(),
-  qualificationQuestions: jsonb("qualification_questions").default({}).notNull(),
+  targetAudience: text("target_audience"),
+  companyInfo: text("company_info"),
+  targetGroupGender: text("target_group_gender"),
+  targetGroupAge: text("target_group_age"),
+  targetGroupLocation: text("target_group_location"),
+  targetGroupInterests: text("target_group_interests").array(),
+  uniqueSellingPoint: text("unique_selling_point"),
+  marketSize: text("market_size"),
+  webDesign: jsonb("web_design").notNull(),
+  marketResearch: jsonb("market_research").notNull(),
+  legalInfo: jsonb("legal_info").notNull(),
+  idealCustomerProfile: jsonb("ideal_customer_profile").notNull(),
+  qualificationQuestions: jsonb("qualification_questions").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  token: text("token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  used: boolean("used").default(false).notNull(),
+});
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
+}));
+
+export const companySettings = pgTable("company_settings", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  companyName: text("company_name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address").notNull(),
+  logoUrl: text("logo_url"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -118,23 +150,15 @@ export const insertProgressSchema = createInsertSchema(userProgress);
 export const selectProgressSchema = createSelectSchema(userProgress);
 export const insertMetricsSchema = createInsertSchema(metrics);
 export const selectMetricsSchema = createSelectSchema(metrics);
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens);
+export const selectPasswordResetTokenSchema = createSelectSchema(passwordResetTokens);
+export const insertCompanySettingsSchema = createInsertSchema(companySettings);
+export const selectCompanySettingsSchema = createSelectSchema(companySettings);
 
 // Types
 export type User = z.infer<typeof selectUserSchema>;
 export type Tutorial = z.infer<typeof selectTutorialSchema>;
 export type UserProgress = z.infer<typeof selectProgressSchema>;
 export type Metrics = z.infer<typeof selectMetricsSchema>;
-
-export const companySettings = pgTable("company_settings", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  companyName: text("company_name").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone").notNull(),
-  address: text("address").notNull(),
-  logoUrl: text("logo_url"),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertCompanySettingsSchema = createInsertSchema(companySettings);
-export const selectCompanySettingsSchema = createSelectSchema(companySettings);
+export type PasswordResetToken = z.infer<typeof selectPasswordResetTokenSchema>;
 export type CompanySettings = z.infer<typeof selectCompanySettingsSchema>;

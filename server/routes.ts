@@ -1,6 +1,6 @@
 import { type Express, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
-import { eq, desc, gte, inArray, and, sql } from "drizzle-orm";
+import { eq, desc, gte, inArray, and, sql, gt } from "drizzle-orm";
 import { db } from "db";
 import { 
   users,
@@ -11,7 +11,9 @@ import {
   callbacks as callbacksTable,
   companySettings,
   companies,
-  customerChecklist
+  customerChecklist,
+  adminCustomerRelations,
+  passwordResetTokens
 } from "../db/schema";
 import { upload, uploadFile } from "./upload";
 import path from "path";
@@ -20,6 +22,7 @@ import { type User } from "./types";
 import express from "express";
 import { sendEmail } from "./services/email";
 import { promises as fsPromises } from "fs";
+import crypto from "crypto";
 
 // Extend Express Request
 declare global {
@@ -115,6 +118,8 @@ export function registerRoutes(app: Express) {
         role: "customer",
         onboardingCompleted: false,
         isApproved: false,
+        currentPhase: "onboarding",
+        progress: 0,
         completedPhases: []
       }).returning();
 
@@ -444,23 +449,45 @@ export function registerRoutes(app: Express) {
         webDesign: JSON.stringify(webDesign),
         marketResearch: JSON.stringify(marketResearch),
         legalInfo: JSON.stringify(legalInfo),
-        target_group_gender: targetGroupGender || '',
-        target_group_age: targetGroupAge || '',
-        target_group_location: targetGroupLocation || '',
-        target_group_interests: targetGroupInterests || [], // Fix: Don't stringify the array, pass it directly
+        targetGroupGender,
+        targetGroupAge,
+        targetGroupLocation,
+        targetGroupInterests: targetGroupInterests || [],
+        uniqueSellingPoint: '',
+        marketSize: '',
         idealCustomerProfile: JSON.stringify({}),
         qualificationQuestions: JSON.stringify({})
       });
 
-      // Update user's onboarding status
-      await db.update(users)
-        .set({ 
-          onboardingCompleted: true,
-          currentPhase: "Complete",
-          progress: 100,
-          completedPhases: ["Checkliste", "Onboarding"]
-        })
-        .where(eq(users.id, userId));
+      // Get current user data to check onboarding status
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: {
+          id: true,
+          completedPhases: true
+        }
+      });
+
+      const completedPhases = user?.completedPhases as string[] || [];
+
+      // Only mark as complete if both onboarding videos and checklist are done
+      if (user && completedPhases.includes("Einführungsvideo")) {
+        await db.update(users)
+          .set({ 
+            onboardingCompleted: true,
+            currentPhase: "Complete",
+            progress: 100,
+            completedPhases: ["Checkliste", "Onboarding", "Einführungsvideo"]
+          })
+          .where(eq(users.id, userId));
+      } else {
+        // Just mark the checklist as completed
+        await db.update(users)
+          .set({ 
+            completedPhases: [...completedPhases, "Checkliste"]
+          })
+          .where(eq(users.id, userId));
+      }
 
       res.json({ success: true });
     } catch (error) {
@@ -477,28 +504,44 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Nicht authentifiziert" });
       }
 
-      const checklistData = req.body;
+      // Get current user data to check checklist status
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, Number(userId)),
+        columns: {
+          id: true,
+          completedPhases: true
+        }
+      });
+
+      const completedPhases = user?.completedPhases as string[] || [];
+
+      // Check if checklist is already completed
+      const checklistCompleted = completedPhases.includes("Checkliste");
 
       // Update user's onboarding status
-      const result = await db
-        .update(users)
-        .set({
-          onboardingCompleted: true,
-          currentPhase: "Abgeschlossen",
-          completedPhases: ["Willkommen", "Einführungsvideo", "Checkliste"],
-          progress: 100,
-        })
-        .where(eq(users.id, Number(userId)))
-        .returning({ updated: users.onboardingCompleted });
-
-      if (!result?.[0]?.updated) {
-        return res.status(500).json({ error: "Fehler beim Aktualisieren des Benutzerstatus" });
+      if (checklistCompleted) {
+        // If checklist is already done, mark everything as complete
+        await db.update(users)
+          .set({
+            onboardingCompleted: true,
+            currentPhase: "Abgeschlossen",
+            completedPhases: ["Willkommen", "Einführungsvideo", "Checkliste"],
+            progress: 100,
+          })
+          .where(eq(users.id, Number(userId)));
+      } else {
+        // Just mark the videos as watched
+        await db.update(users)
+          .set({
+            completedPhases: [...completedPhases, "Einführungsvideo"]
+          })
+          .where(eq(users.id, Number(userId)));
       }
-      
-      res.json({ success: true, message: "Onboarding erfolgreich abgeschlossen" });
+
+      res.json({ success: true });
     } catch (error) {
-      console.error("Error saving checklist:", error);
-      res.status(500).json({ error: "Fehler beim Speichern der Checkliste" });
+      console.error("Error updating onboarding status:", error);
+      res.status(500).json({ error: "Fehler beim Aktualisieren des Onboarding-Status" });
     }
   });
 
@@ -508,77 +551,13 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      // Get current user to access completedPhases
-      const currentUser = await db.query.users.findFirst({
-        where: eq(users.id, req.user.id)
-      });
-
-      if (!currentUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Prüfe, ob das Onboarding-Tutorial bereits existiert
-      let tutorial = await db.query.tutorials.findFirst({
-        where: eq(tutorials.title, "Onboarding")
-      });
-
-      // Wenn nicht, erstelle es
-      if (!tutorial) {
-        const [newTutorial] = await db.insert(tutorials)
-          .values({
-            title: "Onboarding",
-            description: "Erste Schritte im NextMove Portal",
-            category: "onboarding",
-            videoUrl: "",
-            order: 1,
-            isOnboarding: true
-          })
-          .returning();
-        tutorial = newTutorial;
-      }
-
-      // Add onboarding to completedPhases
-      const completedPhases: string[] = Array.isArray(currentUser.completedPhases) 
-        ? currentUser.completedPhases 
-        : [];
-
-      if (!completedPhases.includes("onboarding")) {
-        completedPhases.push("onboarding");
-      }
-
-      // Prüfe, ob bereits ein Fortschritt existiert
-      const existingProgress = await db.query.userProgress.findFirst({
-        where: and(
-          eq(userProgress.userId, req.user.id),
-          eq(userProgress.tutorialId, tutorial.id)
-        )
-      });
-
-      // Wenn kein Fortschritt existiert, erstelle einen neuen
-      if (!existingProgress) {
-        await db.insert(userProgress).values({
-          userId: req.user.id,
-          tutorialId: tutorial.id,
-          completed: true,
-          completedAt: new Date(),
-        });
-      } else {
-        // Aktualisiere den bestehenden Fortschritt
-        await db.update(userProgress)
-          .set({
-            completed: true,
-            completedAt: new Date()
-          })
-          .where(eq(userProgress.id, existingProgress.id));
-      }
-
-      // Update user progress
+      // Update user's onboarding status
       await db.update(users)
         .set({ 
           onboardingCompleted: true,
-          currentPhase: "onboarding",
+          currentPhase: "onboarding", 
           progress: 20,
-          completedPhases: completedPhases
+          completedPhases: ["onboarding", "Einführungsvideo", "Checkliste"] 
         })
         .where(eq(users.id, req.user.id));
 
@@ -629,6 +608,7 @@ export function registerRoutes(app: Express) {
 
       const {
         paymentOption,
+        paymentMethod,
         taxId,
         domain,
         targetAudience,
@@ -639,52 +619,73 @@ export function registerRoutes(app: Express) {
         targetGroupGender,
         targetGroupAge,
         targetGroupLocation,
-        targetGroupInterests
+        targetGroupInterests,
+        uniqueSellingPoint,
+        marketSize
       } = req.body;
 
-      // Save checklist data
-      await db.insert(customerChecklist)
-        .values({
-          userId: req.user.id,
-          paymentOption,
-          taxId,
-          domain,
-          targetAudience,
-          companyInfo,
-          webDesign: JSON.stringify(webDesign),
-          marketResearch: JSON.stringify(marketResearch),
-          legalInfo: JSON.stringify(legalInfo),
-          target_group_gender: targetGroupGender || '',
-          target_group_age: targetGroupAge || '',
-          target_group_location: targetGroupLocation || '',
-          target_group_interests: targetGroupInterests || [], // Fix: Don't stringify the array, pass it directly
-          idealCustomerProfile: JSON.stringify({}),
-          qualificationQuestions: JSON.stringify({})
-        });
+      // Prüfe, ob bereits ein Eintrag existiert
+      const existingChecklist = await db.query.customerChecklist.findFirst({
+        where: eq(customerChecklist.userId, req.user.id)
+      });
+
+      const checklistData = {
+        paymentOption,
+        paymentMethod,
+        taxId,
+        domain,
+        targetAudience,
+        companyInfo,
+        webDesign: JSON.stringify(webDesign),
+        marketResearch: JSON.stringify(marketResearch),
+        legalInfo: JSON.stringify(legalInfo),
+        targetGroupGender,
+        targetGroupAge,
+        targetGroupLocation,
+        targetGroupInterests,
+        uniqueSellingPoint,
+        marketSize,
+        idealCustomerProfile: JSON.stringify({}),
+        qualificationQuestions: JSON.stringify({})
+      };
+
+      if (existingChecklist) {
+        // Update existing checklist
+        await db.update(customerChecklist)
+          .set({
+            ...checklistData,
+            updatedAt: new Date()
+          })
+          .where(eq(customerChecklist.userId, req.user.id));
+      } else {
+        // Create new checklist
+        await db.insert(customerChecklist)
+          .values({
+            userId: req.user.id,
+            ...checklistData
+          });
+      }
 
       // Get current user to access completedPhases
       const currentUser = await db.query.users.findFirst({
-        where: eq(users.id, req.user.id)
+        where: eq(users.id, req.user.id),
+        columns: {
+          id: true,
+          completedPhases: true
+        }
       });
 
-      if (!currentUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
+      const completedPhases = currentUser?.completedPhases as string[] || [];
 
-      // Add checklist to completedPhases
-      const completedPhases: string[] = Array.isArray(currentUser.completedPhases) 
-        ? currentUser.completedPhases 
-        : [];
-
-      if (!completedPhases.includes("onboarding")) {
-        completedPhases.push("onboarding");
+      if (!completedPhases.includes("Checkliste")) {
+        completedPhases.push("Checkliste");
       }
 
       // Update user progress
       await db.update(users)
         .set({
-          currentPhase: "onboarding",
-          progress: 20,
+          currentPhase: "Checkliste",
+          progress: 40,
           completedPhases: completedPhases
         })
         .where(eq(users.id, req.user.id));
@@ -808,10 +809,12 @@ export function registerRoutes(app: Express) {
             webDesign: JSON.stringify({ logoUrl: url }),
             marketResearch: JSON.stringify({}),
             legalInfo: JSON.stringify({}),
-            target_group_gender: '',
-            target_group_age: '',
-            target_group_location: '',
-            target_group_interests: JSON.stringify([]),
+            targetGroupGender: '',
+            targetGroupAge: '',
+            targetGroupLocation: '',
+            targetGroupInterests: [],
+            uniqueSellingPoint: '',
+            marketSize: '',
             idealCustomerProfile: JSON.stringify({}),
             qualificationQuestions: JSON.stringify({})
           })
@@ -1135,17 +1138,18 @@ export function registerRoutes(app: Express) {
 
       const {
         paymentOption,
+        paymentMethod,
         taxId,
         domain,
-        targetAudience,
-        companyInfo,
-        webDesign,
-        marketResearch,
-        legalInfo,
         targetGroupGender,
         targetGroupAge,
         targetGroupLocation,
-        targetGroupInterests
+        targetGroupInterests,
+        webDesign,
+        marketResearch,
+        legalInfo,
+        targetAudience,
+        companyInfo
       } = req.body;
 
       // Save checklist data
@@ -1153,6 +1157,7 @@ export function registerRoutes(app: Express) {
         .values({
           userId: req.user.id,
           paymentOption,
+          paymentMethod,
           taxId,
           domain,
           targetAudience,
@@ -1160,27 +1165,26 @@ export function registerRoutes(app: Express) {
           webDesign: JSON.stringify(webDesign),
           marketResearch: JSON.stringify(marketResearch),
           legalInfo: JSON.stringify(legalInfo),
-          target_group_gender: targetGroupGender || '',
-          target_group_age: targetGroupAge || '',
-          target_group_location: targetGroupLocation || '',
-          target_group_interests: targetGroupInterests || [], // Fix: Don't stringify the array, pass it directly
+          targetGroupGender,
+          targetGroupAge,
+          targetGroupLocation,
+          targetGroupInterests: targetGroupInterests || [],
+          uniqueSellingPoint: '',
+          marketSize: '',
           idealCustomerProfile: JSON.stringify({}),
           qualificationQuestions: JSON.stringify({})
         });
 
       // Get current user to access completedPhases
       const currentUser = await db.query.users.findFirst({
-        where: eq(users.id, req.user.id)
+        where: eq(users.id, req.user.id),
+        columns: {
+          id: true,
+          completedPhases: true
+        }
       });
 
-      if (!currentUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Add checklist to completedPhases
-      const completedPhases: string[] = Array.isArray(currentUser.completedPhases) 
-        ? currentUser.completedPhases 
-        : [];
+      const completedPhases = currentUser?.completedPhases as string[] || [];
 
       if (!completedPhases.includes("onboarding")) {
         completedPhases.push("onboarding");
@@ -1621,6 +1625,18 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  app.get('/api/onboarding-videos', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const onboardingVideos = await db.select().from(tutorials)
+        .where(eq(tutorials.isOnboarding, true))
+        .orderBy(tutorials.order);
+      res.status(200).json(onboardingVideos);
+    } catch (error) {
+      console.error('Error fetching onboarding videos:', error);
+      res.status(500).json({ error: 'Failed to fetch onboarding videos' });
+    }
+  });
+
   app.delete('/api/admin/videos/:id', async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1672,17 +1688,17 @@ export function registerRoutes(app: Express) {
         return res.status(400).json({ error: 'No video file uploaded' });
       }
 
-      const { title, description, type } = req.body;
+      const { title, description, type, category } = req.body;
       console.log('Received files:', files);
-      console.log('Body:', { title, description, type });
+      console.log('Body:', { title, description, type, category });
 
       // Upload video file
       const videoFile = files.file[0];
       const videoUploadResult = await uploadFile(videoFile);
 
-      // Upload thumbnail if present (nur für Tutorial-Videos)
+      // Upload thumbnail if present
       let thumbnailUrl = null;
-      if (type === 'tutorial' && files.thumbnail && files.thumbnail[0]) {
+      if (files.thumbnail && files.thumbnail[0]) {
         const thumbnailFile = files.thumbnail[0];
         const thumbnailUploadResult = await uploadFile(thumbnailFile);
         thumbnailUrl = thumbnailUploadResult.url;
@@ -1693,8 +1709,8 @@ export function registerRoutes(app: Express) {
         description,
         videoUrl: videoUploadResult.url,
         thumbnailUrl,
-        category: type,
-        isOnboarding: type === 'onboarding', // Hier setzen wir isOnboarding basierend auf dem type
+        category,
+        isOnboarding: type === 'onboarding',
         order: 0,
         createdAt: new Date(),
       };
@@ -1806,6 +1822,7 @@ export function registerRoutes(app: Express) {
     try {
       const {
         paymentOption,
+        paymentMethod,
         taxId,
         domain,
         targetGroupGender,
@@ -1822,6 +1839,7 @@ export function registerRoutes(app: Express) {
       // Filter out empty fields
       const checklistData: any = {};
       if (paymentOption) checklistData.paymentOption = paymentOption;
+      if (paymentMethod) checklistData.paymentMethod = paymentMethod;
       if (taxId) checklistData.taxId = taxId;
       if (domain) checklistData.domain = domain;
       if (targetAudience) checklistData.targetAudience = targetAudience;
@@ -1829,11 +1847,11 @@ export function registerRoutes(app: Express) {
       if (webDesign && Object.keys(webDesign).length > 0) checklistData.webDesign = JSON.stringify(webDesign);
       if (marketResearch && Object.keys(marketResearch).length > 0) checklistData.marketResearch = JSON.stringify(marketResearch);
       if (legalInfo && Object.keys(legalInfo).length > 0) checklistData.legalInfo = JSON.stringify(legalInfo);
-      if (targetGroupGender) checklistData.target_group_gender = targetGroupGender;
-      if (targetGroupAge) checklistData.target_group_age = targetGroupAge;
-      if (targetGroupLocation) checklistData.target_group_location = targetGroupLocation;
+      if (targetGroupGender) checklistData.targetGroupGender = targetGroupGender;
+      if (targetGroupAge) checklistData.targetGroupAge = targetGroupAge;
+      if (targetGroupLocation) checklistData.targetGroupLocation = targetGroupLocation;
       if (targetGroupInterests && Object.keys(targetGroupInterests).length > 0) {
-        checklistData.target_group_interests = targetGroupInterests || []; // Fix: Don't stringify the array, pass it directly
+        checklistData.targetGroupInterests = targetGroupInterests || []; // Fix: Don't stringify the array, pass it directly
       }
 
       // Prüfe, ob bereits ein Eintrag existiert
@@ -1965,12 +1983,14 @@ export function registerRoutes(app: Express) {
 
       // Get current user data
       const user = await db.query.users.findFirst({
-        where: eq(users.id, userId)
+        where: eq(users.id, userId),
+        columns: {
+          id: true,
+          completedPhases: true
+        }
       });
 
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
+      const completedPhases = user?.completedPhases as string[] || [];
 
       // Calculate progress based on phase
       let progress = 20; // Base progress after onboarding
@@ -1993,7 +2013,6 @@ export function registerRoutes(app: Express) {
       }
 
       // Update completedPhases array
-      const completedPhases = Array.isArray(user.completedPhases) ? [...user.completedPhases] : [];
       if (!completedPhases.includes(phase)) {
         completedPhases.push(phase);
       }
@@ -2034,6 +2053,613 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Error updating user phase:", error);
       res.status(500).json({ error: "Failed to update user phase" });
+    }
+  });
+
+  // Delete customer (admin only)
+  app.delete("/api/admin/customers/:id", requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Delete all related records first
+      await db.delete(userProgress).where(eq(userProgress.userId, userId));
+      await db.delete(customerChecklist).where(eq(customerChecklist.userId, userId));
+      await db.delete(metrics).where(eq(metrics.userId, userId));
+      await db.delete(callbacksTable).where(eq(callbacksTable.userId, userId));
+      await db.delete(adminCustomerRelations).where(eq(adminCustomerRelations.customerId, userId));
+      
+      // Delete referrals where user is either referrer or referred
+      await db.delete(referrals).where(eq(referrals.referrerId, userId));
+      await db.delete(referrals).where(eq(referrals.referredId, userId));
+      
+      // Finally delete the user
+      await db.delete(users).where(eq(users.id, userId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      res.status(500).json({ error: "Kunde konnte nicht gelöscht werden" });
+    }
+  });
+
+  // Password Reset Routes
+  app.post("/api/password-reset/request", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || !email.trim()) {
+        return res.status(400).json({ error: "Bitte geben Sie eine E-Mail-Adresse ein" });
+      }
+
+      console.log('Processing password reset request for:', email);
+
+      // Prüfe ob der Benutzer existiert
+      const user = await db.query.users.findFirst({
+        where: eq(users.email, email.trim().toLowerCase()),
+        columns: {
+          id: true,
+          firstName: true,
+          role: true,
+          email: true,
+          isApproved: true
+        }
+      });
+
+      if (!user) {
+        return res.status(400).json({ 
+          error: "Diese E-Mail-Adresse ist nicht registriert. Bitte überprüfen Sie die Adresse oder registrieren Sie sich." 
+        });
+      }
+
+      if (user.role !== "customer") {
+        return res.status(400).json({ 
+          error: "Diese Funktion ist nur für Kunden verfügbar." 
+        });
+      }
+
+      if (!user.isApproved) {
+        return res.status(400).json({ 
+          error: "Ihr Account wurde noch nicht freigegeben. Bitte warten Sie auf die Freigabe-E-Mail." 
+        });
+      }
+
+      // Lösche alte Reset-Tokens für diesen Benutzer
+      await db.delete(passwordResetTokens)
+        .where(eq(passwordResetTokens.userId, user.id));
+
+      // Generiere neuen Token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 3600000); // 1 Stunde
+
+      console.log('Generated new reset token for user:', user.id);
+
+      // Speichere Token in der Datenbank
+      await db.insert(passwordResetTokens).values({
+        userId: user.id,
+        token,
+        expiresAt,
+        used: false
+      });
+
+      // Sende Reset-E-Mail
+      const resetLink = `${process.env.CLIENT_URL}/reset-password/${token}`;
+      await sendEmail(user.email, "passwordReset", { 
+        firstName: user.firstName,
+        resetLink
+      });
+
+      console.log('Password reset email sent successfully to:', user.email);
+      res.json({ message: "Eine E-Mail mit Anweisungen zum Zurücksetzen Ihres Passworts wurde versendet." });
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      res.status(500).json({ 
+        error: "Es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut."
+      });
+    }
+  });
+
+  app.post("/api/password-reset/verify", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.body;
+      const resetToken = await db.query.passwordResetTokens.findFirst({
+        where: and(
+          eq(passwordResetTokens.token, token),
+          eq(passwordResetTokens.used, false),
+          gt(passwordResetTokens.expiresAt, new Date())
+        ),
+        with: {
+          user: {
+            columns: {
+              id: true,
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!resetToken?.user || resetToken.user.role !== "customer") {
+        return res.status(400).json({ error: "Ungültiger oder abgelaufener Token" });
+      }
+
+      res.json({ valid: true });
+    } catch (error) {
+      console.error("Token verification error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.put("/api/password-reset/reset", async (req: Request, res: Response) => {
+    try {
+      const { token, newPassword } = req.body;
+      const resetToken = await db.query.passwordResetTokens.findFirst({
+        where: and(
+          eq(passwordResetTokens.token, token),
+          eq(passwordResetTokens.used, false),
+          gt(passwordResetTokens.expiresAt, new Date())
+        ),
+        columns: {
+          id: true,
+          userId: true
+        },
+        with: {
+          user: {
+            columns: {
+              id: true,
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!resetToken?.user || resetToken.user.role !== "customer") {
+        return res.status(400).json({ error: "Ungültiger oder abgelaufener Token" });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password and mark token as used
+      await db.transaction(async (tx) => {
+        await tx.update(users)
+          .set({ password: hashedPassword })
+          .where(eq(users.id, resetToken.user.id));
+
+        await tx.update(passwordResetTokens)
+          .set({ used: true })
+          .where(eq(passwordResetTokens.id, resetToken.id));
+      });
+
+      res.json({ message: "Passwort wurde erfolgreich zurückgesetzt" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Tutorial Routes
+  app.get('/api/tutorials', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const allTutorials = await db.select().from(tutorials)
+        .where(eq(tutorials.isOnboarding, false))
+        .orderBy(tutorials.order);
+      res.status(200).json(allTutorials);
+    } catch (error) {
+      console.error('Error fetching tutorials:', error);
+      res.status(500).json({ error: 'Failed to fetch tutorials' });
+    }
+  });
+
+  app.post('/api/tutorials/:id/complete', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const tutorialId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Nicht authentifiziert' });
+      }
+
+      // Add or update progress
+      await db.insert(userProgress)
+        .values({
+          userId,
+          tutorialId,
+          completed: true,
+          completedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: [userProgress.userId, userProgress.tutorialId],
+          set: { completed: true, completedAt: new Date() }
+        });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error marking tutorial as complete:', error);
+      res.status(500).json({ error: 'Failed to mark tutorial as complete' });
+    }
+  });
+
+  // Update checklist route
+  app.put("/api/customer/checklist", requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const {
+        paymentOption,
+        paymentMethod,
+        taxId,
+        domain,
+        targetAudience,
+        companyInfo,
+        webDesign,
+        marketResearch,
+        legalInfo,
+        targetGroupGender,
+        targetGroupAge,
+        targetGroupLocation,
+        targetGroupInterests,
+        uniqueSellingPoint,
+        marketSize
+      } = req.body;
+
+      const checklistData = {
+        paymentOption,
+        paymentMethod,
+        taxId,
+        domain,
+        targetAudience,
+        companyInfo,
+        webDesign: JSON.stringify(webDesign),
+        marketResearch: JSON.stringify(marketResearch),
+        legalInfo: JSON.stringify(legalInfo),
+        targetGroupGender,
+        targetGroupAge,
+        targetGroupLocation,
+        targetGroupInterests,
+        uniqueSellingPoint,
+        marketSize,
+        idealCustomerProfile: JSON.stringify({}),
+        qualificationQuestions: JSON.stringify({})
+      };
+
+      await db.update(customerChecklist)
+        .set(checklistData)
+        .where(eq(customerChecklist.userId, req.user.id));
+
+      res.json({ message: "Checklist updated successfully" });
+    } catch (error) {
+      console.error("Error updating checklist:", error);
+      res.status(500).json({ error: "Failed to update checklist" });
+    }
+  });
+
+  // Get checklist route
+  app.get("/api/customer/checklist", requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const checklist = await db.query.customerChecklist.findFirst({
+        where: eq(customerChecklist.userId, req.user.id)
+      });
+
+      if (!checklist) {
+        return res.status(404).json({ error: "Checklist not found" });
+      }
+
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error fetching checklist:", error);
+      res.status(500).json({ error: "Failed to fetch checklist" });
+    }
+  });
+
+  // Get customer checklist (for both admin and customer)
+  app.get("/api/customer-checklist/:userId", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      console.log("Fetching checklist for userId:", userId, "Request user:", req.user?.id, "Role:", req.user?.role);
+
+      // Ensure user can only access their own checklist unless they're admin
+      if (req.user?.role !== "admin" && req.user?.id !== userId) {
+        return res.status(403).json({ error: "Unauthorized access" });
+      }
+
+      const checklist = await db.query.customerChecklist.findFirst({
+        where: eq(customerChecklist.userId, userId)
+      });
+
+      if (!checklist) {
+        console.log("No checklist found for userId:", userId);
+        return res.status(404).json({ error: "Checklist not found" });
+      }
+
+      console.log("Checklist found:", checklist);
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error fetching checklist:", error);
+      res.status(500).json({ error: "Failed to fetch checklist" });
+    }
+  });
+
+  app.post("/api/customer/checklist", requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const {
+        paymentOption,
+        paymentMethod,
+        taxId,
+        domain,
+        targetAudience,
+        companyInfo,
+        webDesign,
+        marketResearch,
+        legalInfo,
+        targetGroupGender,
+        targetGroupAge,
+        targetGroupLocation,
+        targetGroupInterests,
+        uniqueSellingPoint,
+        marketSize
+      } = req.body;
+
+      // Prüfe, ob bereits ein Eintrag existiert
+      const existingChecklist = await db.query.customerChecklist.findFirst({
+        where: eq(customerChecklist.userId, req.user.id)
+      });
+
+      const checklistData = {
+        paymentOption,
+        paymentMethod,
+        taxId,
+        domain,
+        targetAudience,
+        companyInfo,
+        webDesign: JSON.stringify(webDesign),
+        marketResearch: JSON.stringify(marketResearch),
+        legalInfo: JSON.stringify(legalInfo),
+        targetGroupGender,
+        targetGroupAge,
+        targetGroupLocation,
+        targetGroupInterests,
+        uniqueSellingPoint,
+        marketSize,
+        idealCustomerProfile: JSON.stringify({}),
+        qualificationQuestions: JSON.stringify({})
+      };
+
+      if (existingChecklist) {
+        // Update existing checklist
+        await db.update(customerChecklist)
+          .set({
+            ...checklistData,
+            updatedAt: new Date()
+          })
+          .where(eq(customerChecklist.userId, req.user.id));
+      } else {
+        // Create new checklist
+        await db.insert(customerChecklist)
+          .values({
+            userId: req.user.id,
+            ...checklistData
+          });
+      }
+
+      // Get current user to access completedPhases
+      const currentUser = await db.query.users.findFirst({
+        where: eq(users.id, req.user.id),
+        columns: {
+          id: true,
+          completedPhases: true
+        }
+      });
+
+      const completedPhases = currentUser?.completedPhases as string[] || [];
+
+      if (!completedPhases.includes("Checkliste")) {
+        completedPhases.push("Checkliste");
+      }
+
+      // Update user progress
+      await db.update(users)
+        .set({
+          currentPhase: "Checkliste",
+          progress: 40,
+          completedPhases: completedPhases
+        })
+        .where(eq(users.id, req.user.id));
+
+      res.json({ message: "Checklist saved successfully" });
+    } catch (error) {
+      console.error("Error saving checklist:", error);
+      res.status(500).json({ error: "Failed to save checklist" });
+    }
+  });
+
+  // Meta connection route
+  app.post("/api/meta/connect", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { accessToken } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId || !accessToken) {
+        return res.status(400).json({ error: "Missing required data" });
+      }
+
+      // Update user with Meta access token
+      await db.update(users)
+        .set({ 
+          metaAccessToken: accessToken,
+          metaConnected: true 
+        })
+        .where(eq(users.id, userId));
+
+      // Fetch initial metrics from Meta API
+      const metaData = await fetchMetaMetrics(accessToken);
+      
+      // Store metrics in database
+      await db.insert(metrics).values({
+        userId,
+        leads: metaData.leads,
+        adSpend: metaData.spend,
+        clicks: metaData.clicks,
+        impressions: metaData.impressions,
+        date: new Date()
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error connecting Meta account:", error);
+      res.status(500).json({ error: "Failed to connect Meta account" });
+    }
+  });
+
+  // Helper function to fetch Meta metrics
+  async function fetchMetaMetrics(userAccessToken: string) {
+    try {
+      // Hole zuerst die Ad Accounts des Users
+      const accountResponse = await fetch(
+        'https://graph.facebook.com/v18.0/me/adaccounts?fields=name,account_id',
+        {
+          headers: {
+            'Authorization': `Bearer ${userAccessToken}`
+          }
+        }
+      );
+      
+      if (!accountResponse.ok) {
+        const error = await accountResponse.json();
+        console.error("Meta API Error:", error);
+        throw new Error(`Failed to fetch ad accounts: ${error.error?.message || 'Unknown error'}`);
+      }
+
+      const accounts = await accountResponse.json();
+      console.log('Ad Accounts Response:', accounts); // Debug log
+
+      if (!accounts.data || accounts.data.length === 0) {
+        throw new Error("No ad accounts found");
+      }
+
+      // Nutze act_ Prefix für Ad Account ID
+      const adAccountId = accounts.data[0].id.startsWith('act_') 
+        ? accounts.data[0].id 
+        : `act_${accounts.data[0].id}`;
+
+      console.log('Using Ad Account ID:', adAccountId); // Debug log
+
+      // Hole dann die Insights für das Werbekonto
+      const insightsResponse = await fetch(
+        `https://graph.facebook.com/v18.0/${adAccountId}/insights?` +
+        `fields=impressions,clicks,spend,actions,action_values&` +
+        `date_preset=maximum&` + // Hole alle verfügbaren Daten
+        `level=account&` + // Account-Level Metriken
+        `limit=500`,  // Mehr Ergebnisse
+        {
+          headers: {
+            'Authorization': `Bearer ${userAccessToken}`
+          }
+        }
+      );
+
+      if (!insightsResponse.ok) {
+        const error = await insightsResponse.json();
+        console.error("Meta Insights API Error:", error);
+        throw new Error(`Failed to fetch insights: ${error.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await insightsResponse.json();
+      console.log('Insights Response:', data); // Debug log
+
+      // Summiere alle Werte
+      const insights = data.data.reduce((acc: any, curr: any) => ({
+        impressions: (acc.impressions || 0) + parseInt(curr.impressions || '0'),
+        clicks: (acc.clicks || 0) + parseInt(curr.clicks || '0'),
+        spend: (acc.spend || 0) + parseFloat(curr.spend || '0'),
+        actions: [...(acc.actions || []), ...(curr.actions || [])]
+      }), {});
+
+      // Summiere alle Leads
+      const allActions = insights.actions || [];
+      const leads = allActions
+        .filter((a: any) => a.action_type === 'lead')
+        .reduce((sum: number, action: any) => sum + parseInt(action.value || '0'), 0);
+
+      return {
+        leads,
+        spend: insights.spend || 0,
+        clicks: insights.clicks || 0,
+        impressions: insights.impressions || 0
+      };
+    } catch (error) {
+      console.error("Error in fetchMetaMetrics:", error);
+      throw error;
+    }
+  }
+
+  // Update metrics route to include Meta data
+  app.get("/api/metrics/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Hole die letzten 7 Tage Metriken
+      const metricsData = await db.query.metrics.findMany({
+        where: eq(metrics.userId, userId),
+        orderBy: desc(metrics.date),
+        limit: 7
+      });
+
+      if (!metricsData || metricsData.length === 0) {
+        return res.json([]);  // Leeres Array zurückgeben, wenn keine Daten gefunden
+      }
+
+      // Sortiere die Daten nach Datum (älteste zuerst)
+      const sortedMetrics = metricsData.sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      res.json(sortedMetrics);
+    } catch (error) {
+      console.error("Error fetching metrics:", error);
+      res.status(500).json({ error: "Failed to fetch metrics" });
+    }
+  });
+
+  // Facebook Data Deletion Endpoint
+  app.post('/api/data-deletion', async (req, res) => {
+    try {
+      const { signed_request } = req.body;
+      
+      if (!signed_request) {
+        return res.status(400).json({
+          message: "Signed request is required",
+          url: "http://localhost:5173/data-deletion.html",
+          confirmation_code: "not_available"
+        });
+      }
+
+      // TODO: Verify signed_request and extract user_id
+      // For now, we'll just acknowledge the request
+      
+      console.log('Received data deletion request');
+
+      // Respond to Facebook with confirmation
+      res.json({
+        url: "http://localhost:5173/data-deletion.html",
+        confirmation_code: Date.now().toString(),
+        status: "success"
+      });
+      
+    } catch (error) {
+      console.error('Error processing deletion request:', error);
+      res.status(500).json({
+        message: "Internal server error",
+        url: "http://localhost:5173/data-deletion.html"
+      });
     }
   });
 }

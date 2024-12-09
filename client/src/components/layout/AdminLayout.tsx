@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
-  Users,
+  ActivitySquare,
   FileText,
   Settings,
   LogOut,
   ChevronRight,
   Phone,
+  Users,
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -27,19 +28,24 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       icon: <LayoutDashboard className="h-4 w-4" />,
     },
     {
-      label: "Rückrufe",
-      path: "/admin/callbacks",
-      icon: <Phone className="h-4 w-4" />,
+      label: "Kunden",
+      path: "/admin/customers",
+      icon: <Users className="h-4 w-4" />,
     },
     {
       label: "Kundentracking",
       path: "/admin/tracking",
-      icon: <Users className="h-4 w-4" />,
+      icon: <ActivitySquare className="h-4 w-4" />,
     },
     {
-      label: "Content",
+      label: "CMS für Kunden",
       path: "/admin/content",
       icon: <FileText className="h-4 w-4" />,
+    },
+    {
+      label: "Rückrufe",
+      path: "/admin/callbacks",
+      icon: <Phone className="h-4 w-4" />,
     },
     {
       label: "Einstellungen",
@@ -69,9 +75,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   });
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 border-r bg-card flex flex-col">
+    <div className="flex bg-background">
+      {/* Sidebar - Fixed */}
+      <aside className="w-64 border-r bg-card fixed top-0 left-0 h-screen">
         <div className="flex flex-col h-full">
           {/* Logo & Company Info */}
           <div className="p-6 border-b">
@@ -159,11 +165,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto p-6">
-          {children}
-        </div>
+      {/* Main Content - Scrollable with offset for fixed sidebar */}
+      <main className="flex-1 ml-64 min-h-screen w-full">
+        {children}
       </main>
     </div>
   );

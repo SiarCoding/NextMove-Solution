@@ -28,26 +28,29 @@ import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 
 const checklistSchema = z.object({
-  paymentOption: z.string().min(1, "Zahlungsoption ist erforderlich"),
-  taxId: z.string().min(1, "Steuernummer ist erforderlich"),
-  domain: z.string().min(1, "Domain ist erforderlich"),
+  paymentOption: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  taxId: z.string().optional(),
+  domain: z.string().optional(),
   targetAudience: z.string().optional(),
   companyInfo: z.string().optional(),
-  targetGroupGender: z.string().min(1, "Geschlecht ist erforderlich"),
-  targetGroupAge: z.string().min(1, "Altersgruppe ist erforderlich"),
-  targetGroupLocation: z.string().min(1, "Standort ist erforderlich"),
+  uniqueSellingPoint: z.string().optional(),
+  marketSize: z.string().optional(),
+  targetGroupGender: z.string().optional(),
+  targetGroupAge: z.string().optional(),
+  targetGroupLocation: z.string().optional(),
   targetGroupInterests: z.array(z.string()).default([]),
   webDesign: z.object({
-    logoUrl: z.string().min(1, "Logo URL ist erforderlich"),
-    colorScheme: z.string().min(1, "Farbschema ist erforderlich"),
+    logoUrl: z.string().optional(),
+    colorScheme: z.string().optional(),
   }),
   marketResearch: z.object({
-    competitors: z.string().min(1, "Wettbewerber sind erforderlich"),
+    competitors: z.string().optional(),
   }),
   legalInfo: z.object({
-    address: z.string().min(1, "Adresse ist erforderlich"),
-    impressum: z.string().min(1, "Impressum ist erforderlich"),
-    privacy: z.string().min(1, "Datenschutzerklärung ist erforderlich"),
+    address: z.string().optional(),
+    impressum: z.string().optional(),
+    privacy: z.string().optional(),
   }),
 });
 
@@ -67,10 +70,13 @@ const ChecklistForm = ({ onComplete }: ChecklistFormProps) => {
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       paymentOption: "",
+      paymentMethod: "",
       taxId: "",
       domain: "",
       targetAudience: "",
       companyInfo: "",
+      uniqueSellingPoint: "",
+      marketSize: "",
       targetGroupGender: "",
       targetGroupAge: "",
       targetGroupLocation: "",
@@ -95,12 +101,31 @@ const ChecklistForm = ({ onComplete }: ChecklistFormProps) => {
     setError("");
 
     try {
+      // Strukturiere die Daten korrekt für die API
+      const formattedData = {
+        paymentOption: values.paymentOption,
+        paymentMethod: values.paymentMethod,
+        taxId: values.taxId,
+        domain: values.domain,
+        targetAudience: values.targetAudience,
+        companyInfo: values.companyInfo,
+        targetGroupGender: values.targetGroupGender,
+        targetGroupAge: values.targetGroupAge,
+        targetGroupLocation: values.targetGroupLocation,
+        targetGroupInterests: values.targetGroupInterests,
+        uniqueSellingPoint: values.uniqueSellingPoint,
+        marketSize: values.marketSize,
+        webDesign: values.webDesign,
+        marketResearch: values.marketResearch,
+        legalInfo: values.legalInfo,
+      };
+
       const response = await fetch("/api/customer/checklist", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(formattedData),
       });
 
       if (!response.ok) {
@@ -173,18 +198,46 @@ const ChecklistForm = ({ onComplete }: ChecklistFormProps) => {
             name="paymentOption"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#8F8F90] font-medium">Zahlungsoption</FormLabel>
+                <FormLabel className="text-[#8F8F90] font-medium">Hast du bereits eine Zahlungsmethode bei Meta hinterlegt?</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="Ihre bevorzugte Zahlungsmethode"
-                    {...field}
-                    className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733]"
-                  />
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger className="bg-[#1E1E20] border-[#2E2E32] text-white focus-visible:ring-[#ff5733]">
+                      <SelectValue placeholder="Bitte auswählen" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1E1E20] border-[#2E2E32]">
+                      <SelectItem value="ja">Ja</SelectItem>
+                      <SelectItem value="nein">Nein</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {form.watch("paymentOption") === "nein" && (
+            <FormField
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[#8F8F90] font-medium">Gewünschte Zahlungsmethode</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger className="bg-[#1E1E20] border-[#2E2E32] text-white focus-visible:ring-[#ff5733]">
+                        <SelectValue placeholder="Bitte auswählen" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1E1E20] border-[#2E2E32]">
+                        <SelectItem value="kreditkarte">Kreditkarte</SelectItem>
+                        <SelectItem value="paypal">PayPal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}
@@ -251,10 +304,46 @@ const ChecklistForm = ({ onComplete }: ChecklistFormProps) => {
               <FormItem>
                 <FormLabel className="text-[#8F8F90] font-medium">Unternehmensinformationen</FormLabel>
                 <FormControl>
-                  <Input
+                  <Textarea
                     placeholder="Ihre Unternehmensinformationen"
                     {...field}
-                    className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733]"
+                    className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] min-h-[150px]"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="uniqueSellingPoint"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-[#8F8F90] font-medium">Alleinstellungsmerkmal</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Was macht Ihr Unternehmen einzigartig?"
+                    {...field}
+                    className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] min-h-[150px]"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="marketSize"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-[#8F8F90] font-medium">Marktgröße</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Wie groß ist Ihr Zielmarkt?"
+                    {...field}
+                    className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733] min-h-[150px]"
                   />
                 </FormControl>
                 <FormMessage />
@@ -273,10 +362,10 @@ const ChecklistForm = ({ onComplete }: ChecklistFormProps) => {
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
-                    <SelectTrigger className="bg-[#1E1E20] border-[#2E2E32] text-white">
+                    <SelectTrigger className="bg-[#1E1E20] border-[#2E2E32] text-white focus-visible:ring-[#ff5733]">
                       <SelectValue placeholder="Wählen Sie das Geschlecht" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-[#1E1E20] border-[#2E2E32]">
                       <SelectItem value="all">Alle</SelectItem>
                       <SelectItem value="male">Männlich</SelectItem>
                       <SelectItem value="female">Weiblich</SelectItem>
@@ -314,11 +403,16 @@ const ChecklistForm = ({ onComplete }: ChecklistFormProps) => {
               <FormItem>
                 <FormLabel className="text-[#8F8F90] font-medium">Region</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="z.B. Deutschland, Österreich, Schweiz"
-                    {...field}
-                    className="bg-[#1E1E20] border-[#2E2E32] text-white placeholder:text-[#8F8F90] focus-visible:ring-[#ff5733]"
-                  />
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger className="bg-[#1E1E20] border-[#2E2E32] text-white focus-visible:ring-[#ff5733]">
+                      <SelectValue placeholder="Bitte Region auswählen" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1E1E20] border-[#2E2E32]">
+                      <SelectItem value="deutschland">Deutschland</SelectItem>
+                      <SelectItem value="oesterreich">Österreich</SelectItem>
+                      <SelectItem value="schweiz">Schweiz</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </FormControl>
                 <FormMessage />
               </FormItem>

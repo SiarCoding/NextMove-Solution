@@ -5,6 +5,13 @@ import AdminLayout from "../../components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Table,
   TableBody,
   TableCell,
@@ -22,6 +29,7 @@ interface CustomerData {
   currentPhase: string;
   progress: number;
   lastActive: string;
+  lastLogin: string;
   onboardingCompleted: boolean;
 }
 
@@ -29,6 +37,7 @@ interface ChecklistData {
   id: number;
   userId: number;
   paymentOption: string;
+  paymentMethod: string;
   taxId: string;
   domain: string;
   targetAudience: string;
@@ -48,10 +57,10 @@ interface ChecklistData {
     impressum: string;
     privacy: string;
   };
-  target_group_gender: string;
-  target_group_age: string;
-  target_group_location: string;
-  target_group_interests: string[];
+  targetGroupGender: string;
+  targetGroupAge: string;
+  targetGroupLocation: string;
+  targetGroupInterests: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -68,19 +77,52 @@ export default function CustomerDetails() {
       return response.data;
     },
     enabled: !!customerId,
-    retry: 1,
-    staleTime: 5000
+    refetchInterval: 5000, // Alle 5 Sekunden aktualisieren
   });
 
   const { data: checklistData, isLoading: checklistLoading } = useQuery<ChecklistData>({
     queryKey: ['customerChecklist', customerId],
     queryFn: async () => {
       const response = await axios.get(`/api/admin/customer-checklist/${customerId}`);
-      return response.data;
+      const data = response.data;
+      
+      // Parse JSON fields
+      const parsedData = {
+        ...data,
+        webDesign: typeof data.webDesign === 'string' ? JSON.parse(data.webDesign) : data.webDesign,
+        marketResearch: typeof data.marketResearch === 'string' ? JSON.parse(data.marketResearch) : data.marketResearch,
+        legalInfo: typeof data.legalInfo === 'string' ? JSON.parse(data.legalInfo) : data.legalInfo,
+      };
+
+      // Ensure competitors is always an array
+      const competitors = parsedData.marketResearch?.competitors;
+      const competitorsArray = Array.isArray(competitors) 
+        ? competitors 
+        : typeof competitors === 'string' 
+          ? competitors.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+
+      // Ensure correct field names and types
+      return {
+        ...parsedData,
+        targetGroupGender: data.target_group_gender || data.targetGroupGender,
+        targetGroupAge: data.target_group_age || data.targetGroupAge,
+        targetGroupLocation: data.target_group_location || data.targetGroupLocation,
+        targetGroupInterests: Array.isArray(data.target_group_interests) 
+          ? data.target_group_interests 
+          : Array.isArray(data.targetGroupInterests)
+            ? data.targetGroupInterests
+            : [],
+        marketResearch: {
+          ...parsedData.marketResearch,
+          competitors: competitorsArray,
+          uniqueSellingPoint: data.uniqueSellingPoint || parsedData.marketResearch?.uniqueSellingPoint || '',
+          marketSize: data.marketSize || parsedData.marketResearch?.marketSize || '',
+        }
+      };
     },
     enabled: !!customerId,
-    retry: 1,
-    staleTime: 5000
+    refetchInterval: 5000, // Alle 5 Sekunden aktualisieren
   });
 
   const { data: progressData, isLoading: progressLoading } = useQuery({
@@ -90,8 +132,7 @@ export default function CustomerDetails() {
       return response.data;
     },
     enabled: !!customerId,
-    retry: 1,
-    staleTime: 5000
+    refetchInterval: 5000, // Alle 5 Sekunden aktualisieren
   });
 
   const isLoading = customerLoading || checklistLoading || progressLoading;
@@ -176,195 +217,233 @@ export default function CustomerDetails() {
           </div>
         </div>
 
-        <div className="grid gap-6">
-          {/* Basis Informationen */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Kontaktinformationen</h2>
+        <div className="space-y-6">
+          {/* Persönliche Informationen */}
+          <Card className="bg-card/50 backdrop-blur">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Persönliche Informationen</CardTitle>
+                  <CardDescription>
+                    Kontaktdaten und Status des Kunden
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
               <Table>
                 <TableBody>
                   <TableRow>
                     <TableCell className="font-medium w-1/4">Name</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell>
                       {customer.firstName} {customer.lastName}
                     </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell className="font-medium">Email</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {customer.email}
-                    </TableCell>
+                    <TableCell>{customer.email}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell className="font-medium">Aktuelle Phase</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {progressData?.currentPhase || customer.currentPhase}
-                    </TableCell>
+                    <TableCell>{progressData?.currentPhase || customer.currentPhase}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell className="font-medium">Fortschritt</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {progressData?.progress || customer.progress}%
+                    <TableCell>{customer.progress}%</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Zuletzt aktiv</TableCell>
+                    <TableCell>
+                      {customer.lastLogin 
+                        ? new Date(customer.lastLogin).toLocaleString('de-DE', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'Noch nicht eingeloggt'}
                     </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Geschäftsinformationen */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Geschäftsinformationen</h2>
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium w-1/4">Zahlungsoption</TableCell>
-                    <TableCell>{checklistData.paymentOption}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Steuernummer</TableCell>
-                    <TableCell>{checklistData.taxId}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Domain</TableCell>
-                    <TableCell>{checklistData.domain}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Unternehmensinformationen</TableCell>
-                    <TableCell className="whitespace-pre-line">{checklistData.companyInfo}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-
-          {/* Webdesign */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Webdesign Präferenzen</h2>
-              <div className="grid md:grid-cols-2 gap-6">
+          {/* Checkliste */}
+          <Card className="bg-card/50 backdrop-blur">
+            <CardHeader>
+              <div className="flex justify-between items-center">
                 <div>
-                  <Table>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="font-medium">Farbschema</TableCell>
-                        <TableCell>{checklistData.webDesign.colorScheme}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Template</TableCell>
-                        <TableCell>{checklistData.webDesign.templatePreference}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  <CardTitle>Checkliste</CardTitle>
+                  <CardDescription>
+                    Eingegebene Daten aus der Checkliste
+                  </CardDescription>
                 </div>
-                {checklistData.webDesign.logoUrl && (
-                  <div className="flex flex-col space-y-4">
-                    <h3 className="font-medium">Logo</h3>
-                    <div className="relative w-48 h-48 bg-black/5 rounded-lg overflow-hidden border">
-                      <img 
-                        src={`${window.location.origin}${checklistData.webDesign.logoUrl}`}
-                        alt="Firmenlogo" 
-                        className="absolute inset-0 w-full h-full object-contain"
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleLogoDownload}
-                      variant="outline" 
-                      className="w-fit"
-                    >
-                      Logo herunterladen
-                    </Button>
-                  </div>
-                )}
               </div>
-            </div>
-          </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Zahlungsinformationen */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Zahlungsinformationen</h3>
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Zahlungsmethode</TableCell>
+                      <TableCell>{checklistData.paymentMethod}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Steuernummer</TableCell>
+                      <TableCell>{checklistData.taxId}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
 
-          {/* Rechtliche Informationen */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Rechtliche Informationen</h2>
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium w-1/4">Adresse</TableCell>
-                    <TableCell className="whitespace-pre-line">{checklistData.legalInfo.address}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Impressum</TableCell>
-                    <TableCell className="whitespace-pre-line">{checklistData.legalInfo.impressum}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Datenschutz</TableCell>
-                    <TableCell className="whitespace-pre-line">{checklistData.legalInfo.privacy}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+              {/* Webseite */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Webseite</h3>
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Domain</TableCell>
+                      <TableCell>{checklistData.domain}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Logo</TableCell>
+                      <TableCell>
+                        {checklistData.webDesign?.logoUrl ? (
+                          <div className="flex items-center space-x-2">
+                            <img 
+                              src={checklistData.webDesign.logoUrl} 
+                              alt="Logo" 
+                              className="w-10 h-10 object-contain"
+                            />
+                            <Button variant="outline" size="sm" onClick={handleLogoDownload}>
+                              Download
+                            </Button>
+                          </div>
+                        ) : (
+                          "Kein Logo hochgeladen"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Farbschema</TableCell>
+                      <TableCell>{checklistData.webDesign?.colorScheme}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Template</TableCell>
+                      <TableCell>{checklistData.webDesign?.templatePreference}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
 
-          {/* Zielgruppe */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Zielgruppe</h2>
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium w-1/4">Hauptzielgruppe</TableCell>
-                    <TableCell>{checklistData.targetAudience}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Geschlecht</TableCell>
-                    <TableCell>{checklistData.target_group_gender}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Alter</TableCell>
-                    <TableCell>{checklistData.target_group_age}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Standort</TableCell>
-                    <TableCell>{checklistData.target_group_location}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Interessen</TableCell>
-                    <TableCell>
-                      {Array.isArray(checklistData?.target_group_interests) 
-                        ? checklistData.target_group_interests.join(", ")
-                        : checklistData?.target_group_interests || "-"}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+              {/* Unternehmensinformationen */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Unternehmensinformationen</h3>
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Unternehmen</TableCell>
+                      <TableCell>{checklistData.companyInfo}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
 
-          {/* Marktforschung */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Marktforschung</h2>
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium w-1/4">Wettbewerber</TableCell>
-                    <TableCell>
-                      {Array.isArray(checklistData?.marketResearch?.competitors)
-                        ? checklistData.marketResearch.competitors.join(", ")
-                        : checklistData?.marketResearch?.competitors || "-"}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Alleinstellungsmerkmal</TableCell>
-                    <TableCell className="whitespace-pre-line">{checklistData.marketResearch.uniqueSellingPoint}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Marktgröße</TableCell>
-                    <TableCell>{checklistData.marketResearch.marketSize}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+              {/* Zielgruppe */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Zielgruppe</h3>
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Geschlecht</TableCell>
+                      <TableCell>
+                        {checklistData.targetGroupGender ? {
+                          'all': 'Alle',
+                          'male': 'Männlich',
+                          'female': 'Weiblich',
+                          'diverse': 'Divers'
+                        }[checklistData.targetGroupGender] || checklistData.targetGroupGender : 'Nicht angegeben'}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Alter</TableCell>
+                      <TableCell>
+                        {checklistData.targetGroupAge || 'Nicht angegeben'}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Standort</TableCell>
+                      <TableCell>
+                        {checklistData.targetGroupLocation || 'Nicht angegeben'}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Interessen</TableCell>
+                      <TableCell>
+                        {checklistData.targetGroupInterests?.length > 0
+                          ? checklistData.targetGroupInterests.join(', ')
+                          : 'Nicht angegeben'}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Marktforschung */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Marktforschung</h3>
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Alleinstellungsmerkmal</TableCell>
+                      <TableCell>
+                        {checklistData.marketResearch?.uniqueSellingPoint || 'Nicht angegeben'}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Marktgröße</TableCell>
+                      <TableCell>
+                        {checklistData.marketResearch?.marketSize || 'Nicht angegeben'}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Wettbewerber</TableCell>
+                      <TableCell>
+                        {checklistData.marketResearch?.competitors?.length > 0
+                          ? checklistData.marketResearch.competitors.join(', ')
+                          : 'Nicht angegeben'}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Rechtliche Informationen */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Rechtliche Informationen</h3>
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Adresse</TableCell>
+                      <TableCell>{checklistData.legalInfo?.address}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Impressum</TableCell>
+                      <TableCell>{checklistData.legalInfo?.impressum}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Datenschutz</TableCell>
+                      <TableCell>{checklistData.legalInfo?.privacy}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AdminLayout>

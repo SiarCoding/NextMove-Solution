@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   AreaChart, 
   Area,
@@ -14,6 +14,11 @@ import {
 import { Users, DollarSign, MousePointer, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { initFacebookSDK, loginWithFacebook } from "@/lib/facebook-sdk";
+
+// ... (rest of the code remains the same)
 
 const formatNumber = (value: number) => {
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
@@ -176,6 +181,14 @@ interface PerformanceMetricsProps {
   data?: typeof TEST_DATA;
 }
 
+// Leere Daten für den Initialzustand
+const EMPTY_DATA = {
+  daily: Array(7).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
+  weekly: Array(4).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
+  monthly: Array(12).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
+  total: Array(1).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "Gesamt" })
+};
+
 // Testdaten für verschiedene Zeiträume
 const TEST_DATA = {
   daily: [
@@ -207,71 +220,132 @@ const TEST_DATA = {
   ]
 };
 
-export default function PerformanceMetrics() {
-  const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly' | 'total'>('daily');
-  const data = TEST_DATA[timeframe];
-  
-  const totals = data.reduce((acc, curr) => ({
-    leads: acc.leads + curr.leads,
-    adSpend: acc.adSpend + curr.adSpend,
-    clicks: acc.clicks + curr.clicks,
-    impressions: acc.impressions + curr.impressions,
-  }), { leads: 0, adSpend: 0, clicks: 0, impressions: 0 });
+export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMetricsProps) {
+  const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [isConnectingMeta, setIsConnectingMeta] = useState(false);
+  const [metaConnected, setMetaConnected] = useState(false);
+  const { user } = useAuth();
 
-  const currentPeriod = data[data.length - 1] || { leads: 0, adSpend: 0, clicks: 0, impressions: 0 };
+  useEffect(() => {
+    // Prüfe ob Meta bereits verbunden ist
+    const checkMetaConnection = async () => {
+      try {
+        const response = await fetch('/api/meta/status');
+        const { connected } = await response.json();
+        setMetaConnected(connected);
+      } catch (error) {
+        console.error('Error checking Meta connection:', error);
+      }
+    };
+
+    checkMetaConnection();
+  }, []);
+
+  const handleMetaConnect = async () => {
+    try {
+      setIsConnectingMeta(true);
+      await initFacebookSDK();
+      const accessToken = await loginWithFacebook();
+      
+      const response = await fetch('/api/meta/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to connect Meta account');
+      }
+
+      setMetaConnected(true);
+      // Hier könnten wir die Daten neu laden
+    } catch (error) {
+      console.error('Error connecting Meta account:', error);
+    } finally {
+      setIsConnectingMeta(false);
+    }
+  };
+
+  const periodData = data[selectedPeriod] || EMPTY_DATA[selectedPeriod];
+  
+  const currentMetrics = {
+    leads: periodData.reduce((sum, day) => sum + day.leads, 0),
+    adSpend: periodData.reduce((sum, day) => sum + day.adSpend, 0),
+    clicks: periodData.reduce((sum, day) => sum + day.clicks, 0),
+    impressions: periodData.reduce((sum, day) => sum + day.impressions, 0)
+  };
 
   return (
-    <Card className="bg-card/50 backdrop-blur">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Performance Metriken</CardTitle>
-          <Tabs defaultValue={timeframe} onValueChange={(v: any) => setTimeframe(v)}>
-            <TabsList>
-              <TabsTrigger value="daily">Tag</TabsTrigger>
-              <TabsTrigger value="weekly">Woche</TabsTrigger>
-              <TabsTrigger value="monthly">Monat</TabsTrigger>
-              <TabsTrigger value="total">Gesamt</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-6 md:grid-cols-2">
-          <MetricCard
-            title="Leads"
-            value={formatNumber(currentPeriod.leads)}
-            weekTotal={formatNumber(totals.leads)}
-            icon={<Users className="h-4 w-4 text-primary" />}
-            chartType="area"
-            data={data.map(d => ({ period: d.period, value: d.leads }))}
-          />
-          <MetricCard
-            title="Werbekosten"
-            value={formatCurrency(currentPeriod.adSpend)}
-            weekTotal={formatCurrency(totals.adSpend)}
-            icon={<DollarSign className="h-4 w-4 text-primary" />}
-            chartType="area"
-            data={data.map(d => ({ period: d.period, value: d.adSpend }))}
-            formatter={formatCurrency}
-          />
-          <MetricCard
-            title="Klicks"
-            value={formatNumber(currentPeriod.clicks)}
-            weekTotal={formatNumber(totals.clicks)}
-            icon={<MousePointer className="h-4 w-4 text-primary" />}
-            chartType="area"
-            data={data.map(d => ({ period: d.period, value: d.clicks }))}
-          />
-          <MetricCard
-            title="Impressions"
-            value={formatNumber(currentPeriod.impressions)}
-            weekTotal={formatNumber(totals.impressions)}
-            icon={<Eye className="h-4 w-4 text-primary" />}
-            chartType="pie"
-            data={data.map(d => ({ period: d.period, value: d.impressions }))}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <Tabs defaultValue="daily" className="w-[400px]">
+          <TabsList>
+            <TabsTrigger 
+              value="daily" 
+              onClick={() => setSelectedPeriod('daily')}
+            >
+              Täglich
+            </TabsTrigger>
+            <TabsTrigger 
+              value="weekly" 
+              onClick={() => setSelectedPeriod('weekly')}
+            >
+              Wöchentlich
+            </TabsTrigger>
+            <TabsTrigger 
+              value="monthly" 
+              onClick={() => setSelectedPeriod('monthly')}
+            >
+              Monatlich
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        {!metaConnected && (
+          <Button 
+            onClick={handleMetaConnect} 
+            disabled={isConnectingMeta}
+          >
+            {isConnectingMeta ? 'Verbinde...' : 'Mit Meta Ads verbinden'}
+          </Button>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          title="Leads"
+          value={currentMetrics.leads}
+          weekTotal={currentMetrics.leads}
+          icon={<Users className="h-4 w-4" />}
+          chartType="area"
+          data={periodData.map(d => ({ period: d.period, value: d.leads }))}
+        />
+        <MetricCard
+          title="Werbeausgaben"
+          value={formatCurrency(currentMetrics.adSpend)}
+          weekTotal={formatCurrency(currentMetrics.adSpend)}
+          icon={<DollarSign className="h-4 w-4" />}
+          chartType="area"
+          data={periodData.map(d => ({ period: d.period, value: d.adSpend }))}
+          formatter={formatCurrency}
+        />
+        <MetricCard
+          title="Klicks"
+          value={currentMetrics.clicks}
+          weekTotal={currentMetrics.clicks}
+          icon={<MousePointer className="h-4 w-4" />}
+          chartType="area"
+          data={periodData.map(d => ({ period: d.period, value: d.clicks }))}
+        />
+        <MetricCard
+          title="Impressionen"
+          value={currentMetrics.impressions}
+          weekTotal={currentMetrics.impressions}
+          icon={<Eye className="h-4 w-4" />}
+          chartType="pie"
+          data={periodData.map(d => ({ period: d.period, value: d.impressions }))}
+        />
+      </div>
+    </div>
   );
 }

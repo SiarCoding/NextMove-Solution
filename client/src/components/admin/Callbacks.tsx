@@ -75,70 +75,75 @@ export function Callbacks() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold tracking-tight">Rückrufe</h2>
-      </div>
+    <div className="p-6">
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold mb-2">Rückrufe</h1>
+          <p className="text-muted-foreground">Übersicht aller Rückrufanfragen</p>
+        </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Kunde</TableHead>
-            <TableHead>Telefon</TableHead>
-            <TableHead>Datum</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Aktionen</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {callbacks.map((callback) => (
-            <TableRow key={callback.id}>
-              <TableCell>
-                <div>
-                  <div className="font-medium">{`${callback.user.firstName} ${callback.user.lastName}`}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {callback.user.email}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>{callback.phone}</TableCell>
-              <TableCell>
-                {new Date(callback.createdAt).toLocaleString("de-DE")}
-              </TableCell>
-              <TableCell>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                    callback.status === "completed"
-                      ? "bg-green-50 text-green-700"
-                      : "bg-yellow-50 text-yellow-700"
-                  }`}
-                >
-                  {callback.status === "completed" ? "Erledigt" : "Ausstehend"}
-                </span>
-              </TableCell>
-              <TableCell>
-                {callback.status === "pending" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => updateCallbackStatus(callback.id, "completed")}
-                  >
-                    <Check className="h-4 w-4" />
-                    <span className="sr-only">Als erledigt markieren</span>
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-          {callbacks.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center">
-                Keine Rückrufe vorhanden
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Kunde</TableHead>
+                <TableHead>Telefon</TableHead>
+                <TableHead>Datum</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Aktionen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {callbacks.map((callback) => (
+                <TableRow key={callback.id}>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{`${callback.user.firstName} ${callback.user.lastName}`}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {callback.user.email}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{callback.phone}</TableCell>
+                  <TableCell>
+                    {new Date(callback.createdAt).toLocaleString("de-DE")}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                        callback.status === "completed"
+                          ? "bg-green-600 text-white"
+                          : "bg-yellow-500/90 text-white"
+                      }`}
+                    >
+                      {callback.status === "completed" ? "Erledigt" : "Ausstehend"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {callback.status === "pending" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => updateCallbackStatus(callback.id, "completed")}
+                      >
+                        <Check className="h-4 w-4" />
+                        <span className="sr-only">Als erledigt markieren</span>
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {callbacks.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">
+                    Keine Rückrufe vorhanden
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }

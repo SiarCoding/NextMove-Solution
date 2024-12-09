@@ -5,6 +5,8 @@ import AdminLayout from "../../components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import OnboardingProgress from "@/components/dashboard/OnboardingProgress";
 import { Card } from "@/components/ui/card";
 import { useLocation } from 'wouter';
@@ -20,6 +22,7 @@ interface CustomerData {
   progress: number;
   lastActive: string;
   onboardingCompleted: boolean;
+  profileImage?: string;
   checklistData?: {
     paymentOption: string;
     taxId: string;
@@ -121,10 +124,23 @@ function CustomerCard({ customer }: { customer: CustomerData }) {
     <Card className="hover:bg-accent/50 transition-colors cursor-pointer w-full">
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">{customer.firstName} {customer.lastName}</h3>
-            <p className="text-sm text-muted-foreground">{customer.email}</p>
-            <p className="text-sm text-muted-foreground mt-1">Phase: {customer.currentPhase}</p>
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage 
+                src={customer.profileImage ? `${customer.profileImage}?t=${Date.now()}` : ''} 
+                alt={`${customer.firstName} ${customer.lastName}`}
+                className="object-cover"
+                loading="eager"
+              />
+              <AvatarFallback className="bg-primary/10">
+                <User className="h-5 w-5 text-primary" />
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="text-lg font-semibold">{customer.firstName} {customer.lastName}</h3>
+              <p className="text-sm text-muted-foreground">{customer.email}</p>
+              <p className="text-sm text-muted-foreground mt-1">Phase: {customer.currentPhase}</p>
+            </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate(`/admin/tracking/${customer.id}`)}>
             Details
@@ -194,29 +210,34 @@ export default function Tracking() {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto py-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Kunden Tracking</h1>
-          <div className="relative w-72">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Suche nach Kunden..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      <div className="p-6">
+        <div className="flex flex-col gap-6">
+          <div>
+            <h1 className="text-2xl font-semibold mb-2">Kundentracking</h1>
+            <p className="text-muted-foreground">Übersicht über den Fortschritt der Kunden</p>
           </div>
-        </div>
+          <div className="flex justify-between items-center">
+            <div className="relative w-72">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Suche nach Kunden..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
 
-        {isLoading ? (
-          <div>Laden...</div>
-        ) : (
-          <div className="flex flex-col space-y-4">
-            {filteredCustomers.map((customer) => (
-              <CustomerCard key={customer.id} customer={customer} />
-            ))}
-          </div>
-        )}
+          {isLoading ? (
+            <div>Laden...</div>
+          ) : (
+            <div className="flex flex-col space-y-4">
+              {filteredCustomers.map((customer) => (
+                <CustomerCard key={customer.id} customer={customer} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </AdminLayout>
   );

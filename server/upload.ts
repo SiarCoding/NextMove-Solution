@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
 export const upload = multer({
   storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit
+    fileSize: 1024 * 1024 * 1024, // 1GB limit
   },
   fileFilter: (req, file, cb) => {
     // Log the incoming file information
@@ -39,11 +39,11 @@ export const upload = multer({
     // Handle different upload types based on the fieldname
     if (file.fieldname === 'logo') {
       // For logo uploads
-      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       if (allowedImageTypes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid image type. Allowed types: JPG, PNG, GIF'));
+        cb(new Error('Invalid image type. Allowed types: JPG, PNG, GIF, WEBP'));
       }
     } else if (file.fieldname === 'thumbnail') {
       // Für Thumbnail-Uploads

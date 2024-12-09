@@ -54,27 +54,35 @@ export const defaultSteps: OnboardingStep[] = [
   },
 ];
 
-const calculateProgress = (phase: string): number => {
-  switch (phase?.toLowerCase()) {
-    case "onboarding":
-    case "checkliste":
-      return 20;
-    case "landingpage":
-    case "setup":
-      return 40;
-    case "ads":
-    case "werbung":
-      return 60;
-    case "whatsapp":
-      return 80;
-    case "webinar":
-      return 100;
-    default:
-      return 20;
+const calculateProgress = (phase: string, completedPhases: string[] = []): number => {
+  // Wenn Onboarding abgeschlossen ist, zeige mindestens 20%
+  if (completedPhases.includes("onboarding")) {
+    switch (phase?.toLowerCase()) {
+      case "onboarding":
+        return 20; // Onboarding abgeschlossen = 20%
+      case "landingpage":
+        return 40;
+      case "ads":
+        return 60;
+      case "whatsapp":
+        return 80;
+      case "webinar":
+        return 100;
+      default:
+        return 20; // Mindestens 20% wenn Onboarding abgeschlossen
+    }
   }
+
+  // Wenn Onboarding nicht abgeschlossen ist, zeige 0%
+  return 0;
 };
 
-const isStepCompleted = (step: OnboardingStep, currentPhase: string) => {
+const isStepCompleted = (step: OnboardingStep, currentPhase: string, completedPhases: string[] = []) => {
+  // Für den ersten Schritt (Onboarding & Checkliste)
+  if (step.id === 1) {
+    return completedPhases.includes("onboarding");
+  }
+
   const phaseOrder = {
     "onboarding": 1,
     "landingpage": 2,
@@ -100,35 +108,32 @@ export default function OnboardingProgress({ isAdmin, userId, initialProgress }:
     enabled: !initialProgress
   });
 
-  const progress = calculateProgress(progressData?.currentPhase || "onboarding");
-  const currentPhase = progressData?.currentPhase || "onboarding";
-
   return (
-    <div className="w-full space-y-4">
-      <div className="flex justify-between gap-2">
-        {defaultSteps.map((step) => {
-          const isCompleted = isStepCompleted(step, currentPhase);
-          return (
-            <div key={step.id} className="flex flex-col items-center text-center flex-1">
-              <div className="mb-2">
-                {isCompleted ? (
-                  <CheckCircle2 className="h-6 w-6 text-primary transition-all duration-300 transform scale-100" />
-                ) : (
-                  <Circle className="h-6 w-6 text-muted-foreground transition-all duration-300 transform scale-100" />
-                )}
-              </div>
-              <div className="text-sm font-medium mb-1">{step.title}</div>
-              <div className="text-xs text-muted-foreground leading-tight">
-                {step.description}
-              </div>
-            </div>
-          );
-        })}
+    <div className="space-y-6">
+      <div>
+        <div className="flex justify-end mb-2">
+          <span className="text-sm font-medium">
+            {calculateProgress(progressData?.currentPhase || "onboarding", progressData?.completedPhases)}%
+          </span>
+        </div>
+        <Progress value={calculateProgress(progressData?.currentPhase || "onboarding", progressData?.completedPhases)} />
       </div>
-      <Progress 
-        value={progress} 
-        className="h-2 transition-all duration-500 ease-in-out" 
-      />
+      
+      <div className="grid gap-4">
+        {defaultSteps.map((step) => (
+          <div key={step.id} className="flex items-start gap-4">
+            {isStepCompleted(step, progressData?.currentPhase || "onboarding", progressData?.completedPhases) ? (
+              <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0" />
+            ) : (
+              <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+            )}
+            <div>
+              <div className="font-medium leading-none mb-1">{step.title}</div>
+              <div className="text-sm text-muted-foreground">{step.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

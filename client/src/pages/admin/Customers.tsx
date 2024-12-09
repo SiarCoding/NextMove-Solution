@@ -9,13 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,9 +17,25 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Plus, Search } from "lucide-react";
+import { Building2, Plus, Search, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User } from "lucide-react";
+
+interface Customer {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  companyId: number | null;
+  companyName?: string;
+  isApproved: boolean;
+  createdAt: string;
+  profileImage?: string;
+}
 
 export default function Customers() {
   const { toast } = useToast();
@@ -35,9 +44,10 @@ export default function Customers() {
   const [isAddingCompany, setIsAddingCompany] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("all");
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
   // Fetch customers
-  const { data: customers, isLoading: customersLoading } = useQuery({
+  const { data: customers, isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["customers"],
     queryFn: async () => {
       const res = await fetch("/api/admin/customers", {
@@ -124,8 +134,45 @@ export default function Customers() {
     },
   });
 
+  // Delete customer
+  const deleteCustomer = useMutation({
+    mutationFn: async (customerId: number) => {
+      const res = await fetch(`/api/admin/customers/${customerId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete customer");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast({
+        title: "Erfolg",
+        description: "Kunde wurde gelöscht",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Kunde konnte nicht gelöscht werden",
+      });
+    },
+  });
+
+  const handleDeleteCustomer = async (customer: Customer) => {
+    setCustomerToDelete(customer);
+  };
+
+  const confirmDelete = () => {
+    if (customerToDelete) {
+      deleteCustomer.mutate(customerToDelete.id);
+      setCustomerToDelete(null);
+    }
+  };
+
   // Filter and search customers
-  const filteredCustomers = customers?.filter((customer: any) => {
+  const filteredCustomers = customers?.filter((customer: Customer) => {
     const matchesSearch = searchTerm
       ? `${customer.firstName} ${customer.lastName} ${customer.email}`
           .toLowerCase()
@@ -162,74 +209,56 @@ export default function Customers() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Kundenverwaltung</h1>
-          <Dialog open={isAddingCompany} onOpenChange={setIsAddingCompany}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Unternehmen hinzufügen
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Neues Unternehmen</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">Name</label>
-                  <Input
-                    value={newCompanyName}
-                    onChange={(e) => setNewCompanyName(e.target.value)}
-                    placeholder="Unternehmensname"
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  onClick={() => createCompany.mutate(newCompanyName)}
-                  disabled={!newCompanyName || createCompany.isPending}
-                >
-                  {createCompany.isPending
-                    ? "Wird erstellt..."
-                    : "Unternehmen erstellen"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Kunden suchen..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select
-              value={filterCompany}
-              onValueChange={setFilterCompany}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Nach Unternehmen filtern" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Unternehmen</SelectItem>
-                <SelectItem value="none">Ohne Unternehmen</SelectItem>
-                {companies?.map((company: any) => (
-                  <SelectItem key={company.id} value={company.id.toString()}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="p-6">
+        <div className="flex flex-col gap-6">
+          <div>
+            <h1 className="text-2xl font-semibold mb-2">Kunden</h1>
+            <p className="text-muted-foreground">Verwalten Sie Ihre Kunden und deren Unternehmen</p>
           </div>
 
-          <div className="bg-card rounded-lg border shadow-sm">
+          <div className="flex justify-between items-center">
+            <div className="relative w-72">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Suche nach Kunden..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={!!customerToDelete} onOpenChange={() => setCustomerToDelete(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Kunde löschen</DialogTitle>
+                <DialogDescription className="pt-4">
+                  Möchten Sie den Kunden <span className="font-medium">{customerToDelete?.firstName} {customerToDelete?.lastName}</span> wirklich löschen?
+                  <br />
+                  <br />
+                  Diese Aktion kann nicht rückgängig gemacht werden. Alle Daten des Kunden werden permanent gelöscht.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setCustomerToDelete(null)}
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmDelete}
+                  disabled={deleteCustomer.isPending}
+                >
+                  {deleteCustomer.isPending ? "Wird gelöscht..." : "Endgültig löschen"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -237,68 +266,65 @@ export default function Customers() {
                   <TableHead>E-Mail</TableHead>
                   <TableHead>Unternehmen</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Registriert am</TableHead>
+                  <TableHead>Aktionen</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers?.map((customer: any) => (
+                {filteredCustomers?.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell>
-                      {customer.firstName} {customer.lastName}
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage 
+                            src={customer.profileImage ? `${customer.profileImage}?t=${Date.now()}` : ''} 
+                            alt={`${customer.firstName} ${customer.lastName}`}
+                            className="object-cover"
+                            loading="eager"
+                          />
+                          <AvatarFallback className="bg-primary/10">
+                            <User className="h-4 w-4 text-primary" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          {customer.firstName} {customer.lastName}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>{customer.email}</TableCell>
                     <TableCell>
-                      <Select
-                        value={customer.companyId?.toString()}
-                        onValueChange={(value) =>
-                          updateCustomerCompany.mutate({
-                            customerId: customer.id,
-                            companyId: parseInt(value),
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-48">
-                          <SelectValue>
-                            {customer.companyName || "Kein Unternehmen"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {companies?.map((company: any) => (
-                            <SelectItem
-                              key={company.id}
-                              value={company.id.toString()}
-                            >
-                              <div className="flex items-center">
-                                <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
-                                {company.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {customer.companyName || "Kein Unternehmen"}
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`px-2 py-1 rounded-full text-xs ${
+                        className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                           customer.isApproved
-                            ? "bg-green-500/10 text-green-500"
-                            : "bg-yellow-500/10 text-yellow-500"
+                            ? "bg-green-600 text-white"
+                            : "bg-yellow-500/90 text-white"
                         }`}
                       >
                         {customer.isApproved ? "Freigegeben" : "Ausstehend"}
                       </span>
                     </TableCell>
                     <TableCell>
-                      {new Date(customer.createdAt).toLocaleDateString("de-DE")}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="hover:bg-red-100 hover:text-red-500 text-red-400"
+                          onClick={() => {
+                            setCustomerToDelete(customer);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredCustomers?.length === 0 && (
+                {!customersLoading && (!filteredCustomers || filteredCustomers.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        Keine Kunden gefunden
-                      </p>
+                    <TableCell colSpan={5} className="text-center">
+                      Keine Kunden gefunden
                     </TableCell>
                   </TableRow>
                 )}

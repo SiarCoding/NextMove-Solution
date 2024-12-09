@@ -23,6 +23,7 @@ import Callbacks from "./pages/admin/Callbacks";
 import Support from "./pages/Support";
 import PartnerProgram from "./pages/PartnerProgram";
 import Tutorials from "./pages/Tutorials";
+import ResetPassword from "./pages/ResetPassword";
 
 // Auth Provider
 import { AuthProvider, RequireAuth, RequireAdmin } from "./lib/auth.tsx";
@@ -45,6 +46,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/reset-password/:token" component={ResetPassword} />
       <Route path="/onboarding">
         <RequireAuth>
           <OnboardingWizard />

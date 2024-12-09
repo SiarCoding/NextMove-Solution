@@ -55,7 +55,7 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32]">
+    <div className="min-h-screen flex bg-black">
       {/* Linke Seite - Bild */}
       <div className="hidden lg:block w-1/2 relative">
         <img
@@ -63,25 +63,17 @@ export default function AdminLogin() {
           alt="Admin Background"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/30" /> {/* Overlay für besseren Kontrast */}
+        <div className="absolute inset-0 bg-black/30" />
       </div>
 
       {/* Rechte Seite - Login Form */}
       <div className="w-full lg:w-1/2 flex flex-col px-8 lg:px-16 py-16">
-        <div className="flex items-center space-x-4 mb-20">
-          <div className="h-24 w-24 rounded-full overflow-hidden ring-2 ring-primary/20 bg-black">
-            <img
-              src="/logo.jpg"
-              alt="NextMove Logo"
-              className="h-full w-full object-contain p-1"
-            />
-          </div>
-          <span className="text-white text-2xl font-bold tracking-tight">
-            NextMove Solution
-          </span>
-        </div>
-
         <div className="mb-12">
+          <img
+            src="/logo.jpg"
+            alt="Logo"
+            className="h-24 w-auto mb-8"
+          />
           <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">
             Admin Portal
           </h1>

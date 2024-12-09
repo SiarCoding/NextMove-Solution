@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { User, Upload, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { ChecklistEditor } from "./ChecklistEditor";
 
 const customerSettingsSchema = z.object({
   firstName: z.string().min(1, "Vorname ist erforderlich"),
@@ -222,6 +223,13 @@ export function CustomerSettings() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-medium">Persönliche Informationen</h2>
+        <p className="text-sm text-muted-foreground">
+          Verwalten Sie Ihre persönlichen Informationen und Einstellungen.
+        </p>
+      </div>
+      
       <Card className="bg-card/50 backdrop-blur">
         <CardHeader>
           <CardTitle>Profilbild</CardTitle>
@@ -362,9 +370,11 @@ export function CustomerSettings() {
         </CardContent>
       </Card>
 
+      <ChecklistEditor />
+
       <Card className="mb-6">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-center">
             <div>
               <CardTitle>Passwort ändern</CardTitle>
               <CardDescription>
@@ -386,66 +396,32 @@ export function CustomerSettings() {
         </CardHeader>
         {isChangingPassword && (
           <CardContent>
-            <Form {...passwordForm}>
-              <form onSubmit={passwordForm.handleSubmit((values) => changePassword.mutate(values))} className="space-y-4">
-                <FormField
-                  control={passwordForm.control}
-                  name="currentPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Aktuelles Passwort</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          className="bg-background"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <Input
+                  type="password"
+                  placeholder="Aktuelles Passwort"
+                  {...passwordForm.register("currentPassword")}
                 />
-
-                <FormField
-                  control={passwordForm.control}
-                  name="newPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Neues Passwort</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          className="bg-background"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                <Input
+                  type="password"
+                  placeholder="Neues Passwort"
+                  {...passwordForm.register("newPassword")}
                 />
-
-                <FormField
-                  control={passwordForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Passwort bestätigen</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          className="bg-background"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                <Input
+                  type="password"
+                  placeholder="Neues Passwort bestätigen"
+                  {...passwordForm.register("confirmPassword")}
                 />
-
+              </div>
+              <div className="flex justify-end">
                 <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={changePassword.isPending}
+                  onClick={passwordForm.handleSubmit((values) => changePassword.mutate(values))}
+                  disabled={
+                    !passwordForm.watch("currentPassword") || 
+                    !passwordForm.watch("newPassword") || 
+                    !passwordForm.watch("confirmPassword")
+                  }
                 >
                   {changePassword.isPending ? (
                     <>
@@ -456,8 +432,8 @@ export function CustomerSettings() {
                     "Passwort ändern"
                   )}
                 </Button>
-              </form>
-            </Form>
+              </div>
+            </div>
           </CardContent>
         )}
       </Card>

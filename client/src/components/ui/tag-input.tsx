@@ -8,12 +8,14 @@ interface TagInputProps {
   onTagsChange: (tags: string[]) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
-export function TagInput({ tags, onTagsChange, placeholder, className }: TagInputProps) {
+export function TagInput({ tags, onTagsChange, placeholder, className, disabled }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
     if (e.key === "Enter" && inputValue.trim()) {
       e.preventDefault();
       if (!tags.includes(inputValue.trim())) {
@@ -24,6 +26,7 @@ export function TagInput({ tags, onTagsChange, placeholder, className }: TagInpu
   };
 
   const removeTag = (tagToRemove: string) => {
+    if (disabled) return;
     onTagsChange(tags.filter(tag => tag !== tagToRemove));
   };
 
@@ -33,13 +36,15 @@ export function TagInput({ tags, onTagsChange, placeholder, className }: TagInpu
         {tags.map((tag, index) => (
           <Badge key={index} variant="secondary" className="px-2 py-1">
             {tag}
-            <button
-              type="button"
-              onClick={() => removeTag(tag)}
-              className="ml-2 hover:text-destructive"
-            >
-              <X className="h-3 w-3" />
-            </button>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="ml-2 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </Badge>
         ))}
       </div>
@@ -49,6 +54,7 @@ export function TagInput({ tags, onTagsChange, placeholder, className }: TagInpu
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className={className}
+        disabled={disabled}
       />
     </div>
   );
