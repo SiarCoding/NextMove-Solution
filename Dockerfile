@@ -27,7 +27,7 @@ WORKDIR /app
 # Copy built assets and necessary files
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/.env* ./
+COPY --from=builder /app/.env.production ./.env
 
 # Install production dependencies
 RUN npm install --omit=dev
@@ -35,8 +35,14 @@ RUN npm install --omit=dev
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=5000
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
+
+# Make sure these environment variables are available
+ENV DATABASE_URL="postgresql://neondb_owner:jY4cAGISlB0Q@ep-old-leaf-a5ccos42.us-east-2.aws.neon.tech/neondb?sslmode=require"
+ENV PGDATABASE="neondb"
+ENV PGHOST="ep-old-leaf-a5ccos42.us-east-2.aws.neon.tech"
+ENV PGPORT="5432"
+ENV PGUSER="neondb_owner"
+ENV PGPASSWORD="jY4cAGISlB0Q"
 
 EXPOSE 5000
 
