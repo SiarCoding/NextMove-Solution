@@ -28,12 +28,16 @@ function log(message: string) {
 const app = express();
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5000", "http://localhost:5173"],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors({
+    origin: ["http://localhost:5000", "http://localhost:5173"],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }));
+}
+// In production gar kein CORS, da same-origin Anfragen möglich sind.
+
 
 // Session configuration
 const sessionMiddleware = session({
@@ -43,9 +47,11 @@ const sessionMiddleware = session({
   cookie: {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax"
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: "strict" 
+    // Bleibt strict, da gleiche Domain und HTTPS gegeben sind.
   }
+  
 });
 
 app.use((req: Request, res: Response, next: NextFunction) => {
