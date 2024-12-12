@@ -2,7 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { createServer } from "http";
-import cors from "cors";
+// CORS import entfernen oder lassen, aber nicht nutzen
+// import cors from "cors";
 import session from "express-session";
 import path from "path";
 import dotenv from "dotenv";
@@ -21,37 +22,32 @@ function log(message: string) {
     second: "2-digit",
     hour12: true,
   });
-
   console.log(`${formattedTime} [express] ${message}`);
 }
 
 const app = express();
 
-// CORS configuration
-if (process.env.NODE_ENV !== 'production') {
-  app.use(cors({
-    origin: ["http://localhost:5000", "http://localhost:5173"],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  }));
-}
-// In production gar kein CORS, da same-origin Anfragen möglich sind.
+// CORS configuration - Entfernen oder nur in Dev nutzen
+// if (process.env.NODE_ENV !== 'production') {
+//   app.use(cors({
+//     origin: ["http://localhost:5000", "http://localhost:5173"],
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization']
+//   }));
+// }
+// Im Produktionsmodus kein CORS notwendig, da Same-Origin.
 
-
-// Session configuration
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || "your-secret-key",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production", // mit HTTPS sicher
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: "strict" 
-    // Bleibt strict, da gleiche Domain und HTTPS gegeben sind.
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: "strict" // Da Frontend und Backend auf derselben Domain laufen, ist strict ok
   }
-  
 });
 
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -86,11 +82,9 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-
       log(logLine);
     }
   });
@@ -111,18 +105,14 @@ app.use((req, res, next) => {
 
   const server = createServer(app);
 
-  // Setup Vite only in development
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
   const PORT = parseInt(process.env.PORT ?? "5000", 10);
-
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server is running on port ${PORT}`);
   });
-  
 })();
