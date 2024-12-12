@@ -46,7 +46,7 @@ const sessionMiddleware = session({
     secure: process.env.NODE_ENV === "production", // mit HTTPS sicher
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: "strict" // Da Frontend und Backend auf derselben Domain laufen, ist strict ok
+    sameSite: "lax" // Da Frontend und Backend auf derselben Domain laufen, ist strict ok
   }
 });
 

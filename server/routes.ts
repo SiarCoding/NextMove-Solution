@@ -167,6 +167,15 @@ export function registerRoutes(app: Express) {
       }
 
       req.session.userId = user.id;
+
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+
       res.json({ 
         user: { 
           ...user, 
@@ -240,7 +249,12 @@ export function registerRoutes(app: Express) {
 
       // Session setzen
       req.session.userId = user.id;
-      await req.session.save();
+      await new Promise<void>((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
       // Benutzer ohne Passwort zurückgeben
       const { password: _, ...userWithoutPassword } = user;
