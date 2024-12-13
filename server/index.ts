@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { createServer } from "http";
-import session from "express-session";
+import session, { SessionOptions } from "express-session";
 import { createClient } from "redis";
 import RedisStore from "connect-redis";
 import path from "path";
@@ -27,6 +27,9 @@ function log(message: string) {
 }
 
 const app = express();
+
+// Trust first proxy
+app.set('trust proxy', 1);
 
 // Initialize session store based on environment
 const initializeSessionStore = async () => {
@@ -55,6 +58,7 @@ const initializeSessionStore = async () => {
         store: new RedisStore({
           client: redisClient,
           prefix: "session:",
+          ttl: 86400 // 24 hours
         }),
         client: redisClient
       };
@@ -80,25 +84,55 @@ const initializeSessionStore = async () => {
     const { store, client: redisClient } = await initializeSessionStore();
     console.log(`Using ${process.env.NODE_ENV === "production" ? "Redis" : "MemoryStore"} for session storage`);
 
-    const sessionMiddleware = session({
+    // Session middleware configuration
+    const sessionConfig: SessionOptions = {
       store,
       secret: process.env.SESSION_SECRET || "your-secret-key",
+      name: 'sid',
       resave: false,
       saveUninitialized: false,
+      rolling: true,
+      proxy: true,
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: "lax"
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: 'lax' as 'lax',
+        path: '/'
       }
+    };
+
+    // Create session middleware
+    const sessionMiddleware = session(sessionConfig);
+
+    // Debug middleware to log request details
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      console.log('Request details:', {
+        url: req.url,
+        method: req.method,
+        headers: {
+          cookie: req.headers.cookie,
+          'user-agent': req.headers['user-agent']
+        }
+      });
+      next();
     });
 
+    // Apply session middleware
     app.use((req: Request, res: Response, next: NextFunction) => {
       sessionMiddleware(req, res, (err) => {
         if (err) {
           console.error("Session middleware error:", err);
           return res.status(500).json({ error: "Serverfehler" });
         }
+
+        // Log session details after middleware
+        console.log('Session details:', {
+          id: req.sessionID,
+          userId: req.session?.userId,
+          cookie: req.session?.cookie
+        });
+
         next();
       });
     });
@@ -107,6 +141,7 @@ const initializeSessionStore = async () => {
     app.use(express.urlencoded({ extended: true, limit: '1gb' }));
     app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+    // Response logging middleware
     app.use((req, res, next) => {
       const start = Date.now();
       const routePath = req.path;
