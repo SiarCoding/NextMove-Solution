@@ -4,10 +4,11 @@ import { setupVite, serveStatic } from "./vite";
 import { createServer } from "http";
 import session from "express-session";
 import { createClient } from "redis";
-import  RedisStore from "connect-redis";
+import RedisStore from "connect-redis";
 import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import MemoryStore from "memorystore";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,39 +28,60 @@ function log(message: string) {
 
 const app = express();
 
-// Initialize Redis client
-const redisClient = createClient({
-  url: process.env.NODE_ENV === "production" 
-    ? process.env.REDIS_EXTERNAL_URL 
-    : process.env.REDIS_INTERNAL_URL,
-  socket: {
-    tls: process.env.NODE_ENV === "production",
-    rejectUnauthorized: false
+// Initialize session store based on environment
+const initializeSessionStore = async () => {
+  if (process.env.NODE_ENV === "production") {
+    try {
+      // Production: Use Redis
+      const redisClient = createClient({
+        url: process.env.REDIS_EXTERNAL_URL,
+        socket: {
+          tls: true,
+          rejectUnauthorized: false
+        }
+      });
+
+      redisClient.on('error', (err) => {
+        console.error('Redis Client Error:', err);
+      });
+
+      redisClient.on('connect', () => {
+        console.log('Connected to Redis successfully');
+      });
+
+      await redisClient.connect();
+
+      return {
+        store: new RedisStore({
+          client: redisClient,
+          prefix: "session:",
+        }),
+        client: redisClient
+      };
+    } catch (error) {
+      console.error('Failed to connect to Redis:', error);
+      throw error;
+    }
+  } else {
+    // Development: Use MemoryStore
+    const MemoryStoreSession = MemoryStore(session);
+    return {
+      store: new MemoryStoreSession({
+        checkPeriod: 86400000 // prune expired entries every 24h
+      }),
+      client: null
+    };
   }
-});
+};
 
-redisClient.on('error', (err) => {
-  console.error('Redis Client Error:', err);
-});
-
-redisClient.on('connect', () => {
-  console.log('Connected to Redis successfully');
-});
-
-// Connect to Redis and start the server
+// Connect to store and start the server
 (async () => {
   try {
-    await redisClient.connect();
-    console.log('Redis client connected');
-
-    // Initialize Redis store for sessions
-    const redisStore = new RedisStore({
-      client: redisClient,
-      prefix: "session:",
-    });
+    const { store, client: redisClient } = await initializeSessionStore();
+    console.log(`Using ${process.env.NODE_ENV === "production" ? "Redis" : "MemoryStore"} for session storage`);
 
     const sessionMiddleware = session({
-      store: redisStore,
+      store,
       secret: process.env.SESSION_SECRET || "your-secret-key",
       resave: false,
       saveUninitialized: false,
@@ -116,7 +138,9 @@ redisClient.on('connect', () => {
     // Graceful shutdown handler
     process.on('SIGTERM', async () => {
       console.log('SIGTERM signal received: closing HTTP server');
-      await redisClient.quit();
+      if (redisClient) {
+        await redisClient.disconnect();
+      }
       process.exit(0);
     });
 
@@ -143,7 +167,7 @@ redisClient.on('connect', () => {
       console.log(`Server is running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('Failed to connect to Redis or start server:', error);
+    console.error('Failed to initialize session store or start server:', error);
     process.exit(1);
   }
 })();
