@@ -138,7 +138,7 @@ export function registerRoutes(app: Express) {
       const { email, password } = req.body;
 
       const user = await db.query.users.findFirst({
-        where: eq(users.email, email)
+        where: eq(users.email, email),
       });
 
       if (!user) {
@@ -158,7 +158,7 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
-      // Update isFirstLogin wenn es der erste Login ist
+      // Update isFirstLogin if it's the first login
       let shouldRedirectToOnboarding = !user.onboardingCompleted;
       if (user.isFirstLogin) {
         await db.update(users)
@@ -168,6 +168,7 @@ export function registerRoutes(app: Express) {
 
       req.session.userId = user.id;
 
+      // Explicitly save session
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => {
           if (err) reject(err);
@@ -175,6 +176,7 @@ export function registerRoutes(app: Express) {
         });
       });
 
+      console.log("Session after login:", req.session);
 
       res.json({ 
         user: { 
@@ -194,16 +196,16 @@ export function registerRoutes(app: Express) {
     try {
       const { email, password } = req.body;
 
-      // Überprüfen Sie, ob bereits ein Admin existiert
+      // Check if admin already exists
       const existingAdmin = await db.query.users.findFirst({
-        where: eq(users.email, email)
+        where: eq(users.email, email),
       });
 
       if (existingAdmin) {
         return res.status(400).json({ error: "Admin existiert bereits" });
       }
 
-      // Admin-Benutzer erstellen
+      // Create admin user
       const hashedPassword = await bcrypt.hash(password, 10);
       const [admin] = await db.insert(users)
         .values({
@@ -247,16 +249,20 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
-      // Session setzen
+      // Set session
       req.session.userId = user.id;
-      await new Promise<void>((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
 
-      // Benutzer ohne Passwort zurückgeben
+      // Explicitly save session
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      console.log("Admin Session after login:", req.session);
+
+      // Return user without password
       const { password: _, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword });
     } catch (error) {
@@ -276,6 +282,7 @@ export function registerRoutes(app: Express) {
 
   app.get("/api/auth/session", async (req: Request, res: Response) => {
     if (!req.session.userId) {
+      console.log("No userId in session");
       return res.json({ user: null });
     }
 
@@ -287,11 +294,15 @@ export function registerRoutes(app: Express) {
 
       if (!user) {
         req.session.destroy(() => {});
+        console.log("User not found, session destroyed");
         return res.json({ user: null });
       }
 
       // Check if user has completed onboarding
       const hasCompletedOnboarding = user.onboardingCompleted;
+
+      // Log the session data
+      console.log("Session user:", user);
 
       // Send response with user data
       const { password: _, ...userWithoutPassword } = user;
@@ -306,6 +317,15 @@ export function registerRoutes(app: Express) {
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+  app.get("/api/test-session", (req: Request, res: Response) => {
+    if (req.session.userId) {
+      res.json({ message: `User ID: ${req.session.userId}` });
+    } else {
+      res.json({ message: "No session set" });
+    }
+  });    
+  
 
   // User approval routes
   app.get("/api/admin/users/pending", requireAdmin, async (req: Request, res: Response) => {
