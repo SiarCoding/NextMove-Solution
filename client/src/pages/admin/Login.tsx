@@ -72,7 +72,7 @@ export default function AdminLogin() {
           <img
             src="/logo.jpg"
             alt="Logo"
-            className="h-24 w-auto mb-8"
+            className="h-32 w-auto mb-8"
           />
           <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">
             Admin Portal

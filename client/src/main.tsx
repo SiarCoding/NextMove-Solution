@@ -23,8 +23,7 @@ import Callbacks from "./pages/admin/Callbacks";
 import Support from "./pages/Support";
 import PartnerProgram from "./pages/PartnerProgram";
 import Tutorials from "./pages/Tutorials";
-import ResetPassword from "./pages/ResetPassword";
-
+import ResetPassword from "./pages/ResetPassword.tsx";
 // Auth Provider
 import { AuthProvider, RequireAuth, RequireAdmin } from "./lib/auth.tsx";
 import { GoogleAuthProvider } from "./lib/googleDriveAuth";

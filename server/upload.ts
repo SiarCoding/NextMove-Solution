@@ -4,10 +4,25 @@ import { promises as fsPromises } from 'fs';
 import path from 'path';
 import multer from 'multer';
 
+// Get upload directory based on environment
+const getUploadDir = () => {
+  if (process.env.RENDER) {
+    // Use Render.com disk mount path in production
+    return '/opt/render/project/src/uploads/';
+  }
+  // Use local path in development
+  return path.join(process.cwd(), 'uploads');
+};
+
+// Get public URL for uploaded files
+const getPublicUrl = (filename: string) => {
+  return `/uploads/${filename}`;
+};
+
 // Configure multer for handling file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = './uploads/';
+    const dir = getUploadDir();
     // Ensure directory exists
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -78,7 +93,7 @@ export const upload = multer({
 export const uploadFile = async (file: Express.Multer.File) => {
   try {
     console.log('Uploading file:', file);
-    const uploadDir = path.join(process.cwd(), 'uploads');
+    const uploadDir = getUploadDir();
     const filePath = path.join(uploadDir, file.filename);
     
     // Check if file exists
@@ -88,7 +103,7 @@ export const uploadFile = async (file: Express.Multer.File) => {
     }
 
     console.log('File exists at:', filePath);
-    const fileUrl = `/uploads/${file.filename}`;
+    const fileUrl = getPublicUrl(file.filename);
     console.log('Generated URL:', fileUrl);
     
     return {
