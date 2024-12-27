@@ -1,19 +1,22 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import CustomerLayout from "../components/layout/CustomerLayout";
 import PerformanceMetrics from "../components/dashboard/PerformanceMetrics";
 import OnboardingProgress from "../components/dashboard/OnboardingProgress";
-import OnboardingWizard from "../components/onboarding/OnboardingWizard"; // Import OnboardingWizard
+import OnboardingWizard from "../components/onboarding/OnboardingWizard";
 import { useAuth } from "../lib/auth";
 import { useLocation } from "wouter";
 import { Building2, Mail, Phone, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { initFacebookSDK, connectToMetaAPI } from "@/lib/facebook-sdk";
+import { MetaIcon } from "@/components/icons/MetaIcon";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const [isConnectingMeta, setIsConnectingMeta] = useState(false);
 
   const { data: dashboardData, isLoading: isDashboardLoading } = useQuery({
     queryKey: ["dashboard"],
@@ -43,6 +46,23 @@ export default function Dashboard() {
     },
     enabled: !!user,
   });
+
+  useEffect(() => {
+    // Initialisiere Facebook SDK
+    initFacebookSDK().catch(console.error);
+  }, []);
+
+  const handleMetaConnect = async () => {
+    try {
+      setIsConnectingMeta(true);
+      await connectToMetaAPI();
+      // Die UI wird automatisch durch den Page Reload in connectToMetaAPI aktualisiert
+    } catch (error) {
+      console.error('Failed to connect Meta:', error);
+    } finally {
+      setIsConnectingMeta(false);
+    }
+  };
 
   if (!user) {
     return null;
@@ -80,6 +100,40 @@ export default function Dashboard() {
   return (
     <CustomerLayout>
       <div className="space-y-8">
+        {/* Meta Connect Button */}
+        <Card>
+          <CardContent className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <MetaIcon className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-medium">Meta Ads verbinden</h3>
+                <p className="text-sm text-muted-foreground">
+                  Verbinden Sie Ihr Meta Ads Konto, um Ihre Werbekampagnen-Metriken zu sehen
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleMetaConnect}
+              disabled={isConnectingMeta}
+              className="flex items-center gap-2"
+            >
+              {isConnectingMeta ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
+                  Verbinde...
+                </>
+              ) : (
+                <>
+                  Mit Meta verbinden
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Metrics Section */}
         <PerformanceMetrics />
 

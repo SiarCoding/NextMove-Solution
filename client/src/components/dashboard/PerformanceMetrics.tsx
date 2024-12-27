@@ -16,10 +16,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { initFacebookSDK, loginWithFacebook, openFacebookBusinessIntegration } from "@/lib/facebook-sdk";
+import { initFacebookSDK, connectToMetaAPI } from "@/lib/facebook-sdk";
 import { MetaIcon } from "../icons/MetaIcon";
 
-// ... (rest of the code remains the same)
+// Typdefinitionen
+interface MetricDataPoint {
+  leads: number;
+  adSpend: number;
+  clicks: number;
+  impressions: number;
+  period: string;
+}
+
+interface MetricsData {
+  daily: MetricDataPoint[];
+  weekly: MetricDataPoint[];
+  monthly: MetricDataPoint[];
+  total: MetricDataPoint[];
+}
+
+type TimeframeType = 'daily' | 'weekly' | 'monthly' | 'total';
+
+interface ChartDataPoint {
+  period: string;
+  value: number;
+}
 
 const formatNumber = (value: number) => {
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
@@ -50,11 +71,11 @@ interface MetricCardProps {
   weekTotal: string | number;
   icon: React.ReactNode;
   chartType: 'area' | 'pie';
-  data: any[];
+  data: ChartDataPoint[];
   formatter?: (value: number) => string;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ 
+const MetricCard = ({ 
   title, 
   value, 
   weekTotal,
@@ -62,223 +83,144 @@ const MetricCard: React.FC<MetricCardProps> = ({
   chartType, 
   data,
   formatter = formatNumber 
-}) => {
-  const renderChart = () => {
-    const commonProps = {
-      data,
-      margin: { top: 5, right: 5, left: 5, bottom: 5 }
-    };
-
-    const commonAxisProps = {
-      stroke: "hsl(var(--muted-foreground))",
-      fontSize: 12,
-      tickLine: false,
-      axisLine: false
-    };
-
-    const tooltipStyle = {
-      contentStyle: {
-        backgroundColor: "hsl(var(--card))",
-        border: "1px solid hsl(var(--border))",
-        borderRadius: "var(--radius)",
-        color: "hsl(var(--foreground))"
-      }
-    };
-
-    if (chartType === 'pie') {
-      const pieData = data.map(d => ({
-        name: d.period,
-        value: d.value,
-        percentage: ((d.value / data.reduce((acc: number, curr: any) => acc + curr.value, 0)) * 100).toFixed(1)
-      }));
-
-      return (
-        <ResponsiveContainer {...commonProps}>
-          <PieChart>
-            <Pie
-              data={pieData}
-              innerRadius={35}
-              outerRadius={50}
-              paddingAngle={2}
-              dataKey="value"
-              stroke="hsl(var(--background))"
-              strokeWidth={2}
-            >
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip
-              {...tooltipStyle}
-              formatter={(value: any, name: any, props: any) => [
-                `${formatter(value)} (${props.payload.percentage}%)`,
-                name
-              ]}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    return (
-      <ResponsiveContainer {...commonProps}>
-        <AreaChart data={data}>
-          <CartesianGrid 
-            strokeDasharray="3 3" 
-            stroke="hsl(var(--border))" 
-            vertical={false} 
-          />
-          <XAxis 
-            dataKey="period" 
-            {...commonAxisProps}
-          />
-          <YAxis 
-            {...commonAxisProps}
-            width={30}
-          />
-          <Tooltip {...tooltipStyle} formatter={formatter} />
-          <defs>
-            <linearGradient id="colorPrimary" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <Area 
-            type="monotone" 
-            dataKey="value" 
-            stroke="hsl(var(--primary))"
-            fill="url(#colorPrimary)"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    );
-  };
-
+}: MetricCardProps) => {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <div>
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <p className="text-xs text-muted-foreground">Diese Woche: {weekTotal}</p>
-        </div>
-        <div className="p-2 bg-primary/10 rounded-xl">
-          {icon}
-        </div>
+        <CardTitle className="text-sm font-medium">
+          {title}
+        </CardTitle>
+        {icon}
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline justify-between">
-          <div className="text-2xl font-bold">{value}</div>
-          <div className="text-sm text-muted-foreground">Heute</div>
+        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-xs text-muted-foreground">
+          +{weekTotal} diese Woche
         </div>
-        <div className="h-[120px] mt-4">
-          {renderChart()}
+        <div className="h-[80px] mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'area' ? (
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="hsl(var(--primary))"
+                  fillOpacity={1}
+                  fill="url(#colorValue)"
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            ) : (
+              <PieChart>
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="period"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={30}
+                  isAnimationActive={false}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            )}
+          </ResponsiveContainer>
         </div>
       </CardContent>
     </Card>
   );
 };
 
-interface PerformanceMetricsProps {
-  data?: typeof TEST_DATA;
-}
-
 // Leere Daten für den Initialzustand
-const EMPTY_DATA = {
+const EMPTY_DATA: MetricsData = {
   daily: Array(7).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
   weekly: Array(4).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
   monthly: Array(12).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
-  total: Array(1).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "Gesamt" })
+  total: Array(4).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" })
 };
 
-// Testdaten für verschiedene Zeiträume
-const TEST_DATA = {
-  daily: [
-    { leads: 24, adSpend: 800, clicks: 520, impressions: 8000, period: "Mo" },
-    { leads: 35, adSpend: 900, clicks: 620, impressions: 9500, period: "Di" },
-    { leads: 30, adSpend: 850, clicks: 590, impressions: 9000, period: "Mi" },
-    { leads: 40, adSpend: 1100, clicks: 780, impressions: 11500, period: "Do" },
-    { leads: 45, adSpend: 1200, clicks: 850, impressions: 12000, period: "Fr" },
-    { leads: 32, adSpend: 950, clicks: 680, impressions: 10000, period: "Sa" },
-    { leads: 38, adSpend: 1000, clicks: 820, impressions: 11000, period: "So" },
-  ],
-  weekly: [
-    { leads: 244, adSpend: 6800, clicks: 4880, impressions: 71000, period: "KW1" },
-    { leads: 255, adSpend: 7000, clicks: 5020, impressions: 73500, period: "KW2" },
-    { leads: 230, adSpend: 6500, clicks: 4590, impressions: 69000, period: "KW3" },
-    { leads: 280, adSpend: 7500, clicks: 5580, impressions: 81500, period: "KW4" },
-  ],
-  monthly: [
-    { leads: 980, adSpend: 27000, clicks: 19520, impressions: 284000, period: "Jan" },
-    { leads: 1020, adSpend: 28000, clicks: 20080, impressions: 294000, period: "Feb" },
-    { leads: 920, adSpend: 26000, clicks: 18360, impressions: 276000, period: "Mär" },
-    { leads: 1120, adSpend: 30000, clicks: 22320, impressions: 326000, period: "Apr" },
-  ],
-  total: [
-    { leads: 4040, adSpend: 111000, clicks: 80280, impressions: 1180000, period: "Q1" },
-    { leads: 4080, adSpend: 112000, clicks: 80320, impressions: 1176000, period: "Q2" },
-    { leads: 3680, adSpend: 104000, clicks: 73440, impressions: 1104000, period: "Q3" },
-    { leads: 4480, adSpend: 120000, clicks: 89280, impressions: 1304000, period: "Q4" },
-  ]
-};
+interface PerformanceMetricsProps {
+  data?: MetricsData;
+}
 
 export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMetricsProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [isConnectingMeta, setIsConnectingMeta] = useState(false);
-  const [metaConnected, setMetaConnected] = useState(false);
   const { user } = useAuth();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [timeframe, setTimeframe] = useState<TimeframeType>('daily');
 
   useEffect(() => {
-    // Prüfe ob Meta bereits verbunden ist
-    const checkMetaConnection = async () => {
-      try {
-        const response = await fetch('/api/meta/status');
-        const { connected } = await response.json();
-        setMetaConnected(connected);
-      } catch (error) {
-        console.error('Error checking Meta connection:', error);
-      }
-    };
-
-    checkMetaConnection();
+    initFacebookSDK().catch(console.error);
   }, []);
 
   const handleMetaConnect = async () => {
     try {
-      setIsConnectingMeta(true);
-      await initFacebookSDK();
-      const accessToken = await loginWithFacebook();
-      
-      // Speichere den Access Token
-      const response = await fetch('/api/meta/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to connect Meta account');
-      }
-
-      const { businessId } = await response.json();
-      
-      // Öffne das Business Integration Fenster
-      openFacebookBusinessIntegration(businessId);
-      setMetaConnected(true);
+      setIsConnecting(true);
+      await connectToMetaAPI();
+      // Die UI wird automatisch durch den Page Reload in connectToMetaAPI aktualisiert
     } catch (error) {
-      console.error('Error connecting Meta account:', error);
+      console.error('Failed to connect Meta:', error);
+      // Hier können Sie einen Toast oder eine andere Fehlermeldung anzeigen
     } finally {
-      setIsConnectingMeta(false);
+      setIsConnecting(false);
     }
   };
 
-  const periodData = data[selectedPeriod] || EMPTY_DATA[selectedPeriod];
+  const periodData = data[timeframe];
   
   const currentMetrics = {
-    leads: periodData.reduce((sum, day) => sum + day.leads, 0),
-    adSpend: periodData.reduce((sum, day) => sum + day.adSpend, 0),
-    clicks: periodData.reduce((sum, day) => sum + day.clicks, 0),
-    impressions: periodData.reduce((sum, day) => sum + day.impressions, 0)
+    leads: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.leads, 0),
+    adSpend: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.adSpend, 0),
+    clicks: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.clicks, 0),
+    impressions: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.impressions, 0)
   };
+
+  // Wenn nicht mit Meta verbunden, zeige nur den Verbindungsbutton
+  if (!user?.metaConnected) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center space-y-4 py-8">
+              <MetaIcon className="w-12 h-12 text-primary" />
+              <div className="text-center">
+                <h3 className="text-lg font-semibold">Mit Meta Ads verbinden</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Verbinden Sie Ihr Meta Ads Konto, um Ihre Werbekampagnen-Metriken zu sehen.
+                </p>
+                <Button
+                  size="lg"
+                  onClick={handleMetaConnect}
+                  disabled={isConnecting}
+                  className="flex items-center gap-2"
+                >
+                  {isConnecting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
+                      Verbinde...
+                    </>
+                  ) : (
+                    <>
+                      <MetaIcon className="w-5 h-5" />
+                      Mit Meta verbinden
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -287,70 +229,71 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
           <TabsList>
             <TabsTrigger 
               value="daily" 
-              onClick={() => setSelectedPeriod('daily')}
+              onClick={() => setTimeframe('daily')}
             >
               Täglich
             </TabsTrigger>
             <TabsTrigger 
               value="weekly" 
-              onClick={() => setSelectedPeriod('weekly')}
+              onClick={() => setTimeframe('weekly')}
             >
               Wöchentlich
             </TabsTrigger>
             <TabsTrigger 
               value="monthly" 
-              onClick={() => setSelectedPeriod('monthly')}
+              onClick={() => setTimeframe('monthly')}
             >
               Monatlich
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        
-        {!metaConnected && (
-          <Button 
-            onClick={handleMetaConnect} 
-            disabled={isConnectingMeta}
-            className="flex items-center gap-2"
-          >
-            <MetaIcon className="h-5 w-5" />
-            {isConnectingMeta ? 'Verbinde...' : 'Mit Meta Ads verbinden'}
-          </Button>
-        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Leads"
-          value={currentMetrics.leads}
-          weekTotal={currentMetrics.leads}
+          value={formatNumber(currentMetrics.leads)}
+          weekTotal={formatNumber(currentMetrics.leads)}
           icon={<Users className="h-4 w-4" />}
           chartType="area"
-          data={periodData.map(d => ({ period: d.period, value: d.leads }))}
+          data={periodData.map((d: MetricDataPoint): ChartDataPoint => ({ 
+            period: d.period, 
+            value: d.leads 
+          }))}
         />
         <MetricCard
-          title="Werbeausgaben"
+          title="Ad Spend"
           value={formatCurrency(currentMetrics.adSpend)}
           weekTotal={formatCurrency(currentMetrics.adSpend)}
           icon={<DollarSign className="h-4 w-4" />}
           chartType="area"
-          data={periodData.map(d => ({ period: d.period, value: d.adSpend }))}
+          data={periodData.map((d: MetricDataPoint): ChartDataPoint => ({ 
+            period: d.period, 
+            value: d.adSpend 
+          }))}
           formatter={formatCurrency}
         />
         <MetricCard
-          title="Klicks"
-          value={currentMetrics.clicks}
-          weekTotal={currentMetrics.clicks}
+          title="Clicks"
+          value={formatNumber(currentMetrics.clicks)}
+          weekTotal={formatNumber(currentMetrics.clicks)}
           icon={<MousePointer className="h-4 w-4" />}
           chartType="area"
-          data={periodData.map(d => ({ period: d.period, value: d.clicks }))}
+          data={periodData.map((d: MetricDataPoint): ChartDataPoint => ({ 
+            period: d.period, 
+            value: d.clicks 
+          }))}
         />
         <MetricCard
-          title="Impressionen"
-          value={currentMetrics.impressions}
-          weekTotal={currentMetrics.impressions}
+          title="Impressions"
+          value={formatNumber(currentMetrics.impressions)}
+          weekTotal={formatNumber(currentMetrics.impressions)}
           icon={<Eye className="h-4 w-4" />}
-          chartType="pie"
-          data={periodData.map(d => ({ period: d.period, value: d.impressions }))}
+          chartType="area"
+          data={periodData.map((d: MetricDataPoint): ChartDataPoint => ({ 
+            period: d.period, 
+            value: d.impressions 
+          }))}
         />
       </div>
     </div>

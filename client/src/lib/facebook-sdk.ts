@@ -17,7 +17,7 @@ interface FacebookSDK {
   
   login(
     callback: (response: FacebookLoginResponse) => void,
-    params: { scope: string }
+    params: { scope: string; return_scopes?: boolean; enable_profile_selector?: boolean }
   ): void;
 }
 
@@ -28,13 +28,26 @@ declare global {
   }
 }
 
-// Initialisiere das Facebook SDK für OAuth
+// Initialisiere das Facebook SDK für OAuth und Marketing
 export function initFacebookSDK(): Promise<void> {
   return new Promise<void>((resolve) => {
+    // Prüfe ob das SDK bereits geladen ist
+    if (window.FB) {
+      window.FB.init({
+        appId: import.meta.env.VITE_FACEBOOK_MARKETING_APP_ID,
+        clientToken: import.meta.env.VITE_FACEBOOK_MARKETING_CLIENT_TOKEN,
+        cookie: true,
+        xfbml: true,
+        version: 'v18.0'
+      });
+      resolve();
+      return;
+    }
+
     window.fbAsyncInit = function () {
       window.FB.init({
-        appId: import.meta.env.VITE_FACEBOOK_APP_ID, // OAuth App ID (601...)
-        clientToken: import.meta.env.VITE_FACEBOOK_CLIENT_TOKEN,
+        appId: import.meta.env.VITE_FACEBOOK_MARKETING_APP_ID,
+        clientToken: import.meta.env.VITE_FACEBOOK_MARKETING_CLIENT_TOKEN,
         cookie: true,
         xfbml: true,
         version: 'v18.0'
@@ -52,46 +65,55 @@ export function initFacebookSDK(): Promise<void> {
   });
 }
 
-// Standard Facebook Login für Benutzerauthentifizierung
-export function loginWithFacebook(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    window.FB.login((response) => {
-      if (response.authResponse?.accessToken) {
-        resolve(response.authResponse.accessToken);
-      } else {
-        reject(new Error('Facebook Login fehlgeschlagen'));
-      }
-    }, {
-      scope: 'public_profile,email'  // Nur grundlegende Berechtigungen
+// Vereinfachter Login für Meta Business API
+export async function connectToMetaAPI(): Promise<void> {
+  try {
+    console.log('Starting Meta API connection...');
+    
+    // Initialisiere das SDK, falls noch nicht geschehen
+    await initFacebookSDK();
+    console.log('Facebook SDK initialized');
+
+    // Direkter Login mit minimalen Berechtigungen
+    const accessToken = await new Promise<string>((resolve, reject) => {
+      window.FB.login(
+        (response: FacebookLoginResponse) => {
+          if (response.authResponse?.accessToken) {
+            resolve(response.authResponse.accessToken);
+          } else {
+            reject(new Error('Facebook login failed'));
+          }
+        },
+        {
+          scope: 'ads_read,business_management', // Minimale Berechtigungen für Business Integration
+          return_scopes: true, // Zeigt an, welche Berechtigungen gewährt wurden
+          enable_profile_selector: true, // Erlaubt Auswahl des Business-Accounts
+        }
+      );
     });
-  });
-}
 
-// Öffne Facebook Business Integration
-export function openFacebookBusinessIntegration(businessId: string): void {
-  const redirectUri = encodeURIComponent(`${window.location.origin}/auth/facebook/callback`);
-  const appId = import.meta.env.VITE_FACEBOOK_MARKETING_APP_ID; // Marketing App ID (607...)
-  const scope = encodeURIComponent('business_management,ads_management,ads_read,read_insights');
-  
-  const url = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${businessId}`;
-  window.open(url, '_blank', 'width=800,height=600');
-}
+    console.log('Got access token:', accessToken.substring(0, 10) + '...');
+    
+    // Sende den Token an unseren Backend-Server
+    console.log('Sending token to backend...');
+    const response = await fetch('/api/meta/connect', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ accessToken }),
+      credentials: 'include',
+    });
 
-// Initialisiere das Facebook SDK für Marketing API
-export function initMarketingAPI(): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const script = document.createElement('script');
-    script.src = 'https://connect.facebook.net/de_DE/sdk/marketing.js';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      window.FB.init({
-        appId: import.meta.env.VITE_FACEBOOK_MARKETING_APP_ID, // Marketing App ID (607...)
-        clientToken: import.meta.env.VITE_FACEBOOK_MARKETING_CLIENT_TOKEN,
-        version: 'v18.0'
-      });
-      resolve();
-    };
-    document.head.appendChild(script);
-  });
+    if (!response.ok) {
+      throw new Error('Failed to connect Meta account');
+    }
+
+    console.log('Meta connection successful!');
+    // Aktualisiere die UI oder zeige eine Erfolgsmeldung
+    window.location.reload();
+  } catch (error) {
+    console.error('Error connecting to Meta:', error);
+    throw error;
+  }
 }
