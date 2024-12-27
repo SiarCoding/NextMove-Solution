@@ -183,45 +183,6 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
     impressions: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.impressions, 0)
   };
 
-  // Wenn nicht mit Meta verbunden, zeige nur den Verbindungsbutton
-  if (!user?.metaConnected) {
-    return (
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center space-y-4 py-8">
-              <MetaIcon className="w-12 h-12 text-primary" />
-              <div className="text-center">
-                <h3 className="text-lg font-semibold">Mit Meta Ads verbinden</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Verbinden Sie Ihr Meta Ads Konto, um Ihre Werbekampagnen-Metriken zu sehen.
-                </p>
-                <Button
-                  size="lg"
-                  onClick={handleMetaConnect}
-                  disabled={isConnecting}
-                  className="flex items-center gap-2"
-                >
-                  {isConnecting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
-                      Verbinde...
-                    </>
-                  ) : (
-                    <>
-                      <MetaIcon className="w-5 h-5" />
-                      Mit Meta verbinden
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">

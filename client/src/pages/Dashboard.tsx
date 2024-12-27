@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { initFacebookSDK, connectToMetaAPI } from "@/lib/facebook-sdk";
-import { MetaIcon } from "@/components/icons/MetaIcon";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -48,7 +47,6 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    // Initialisiere Facebook SDK
     initFacebookSDK().catch(console.error);
   }, []);
 
@@ -100,39 +98,45 @@ export default function Dashboard() {
   return (
     <CustomerLayout>
       <div className="space-y-8">
-        {/* Meta Connect Button */}
-        <Card>
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <MetaIcon className="w-5 h-5" />
+        {/* Meta Connect Button - nur anzeigen wenn nicht verbunden */}
+        {!user?.metaConnected && (
+          <Card>
+            <CardContent className="flex items-center justify-between p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-lg w-[60px] h-[60px] flex items-center justify-center">
+                  <img 
+                    src="/meta-logo.png" 
+                    alt="Meta Logo" 
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-medium">Meta Ads verbinden</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Verbinden Sie Ihr Meta Ads Konto, um Ihre Werbekampagnen-Metriken zu sehen
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <h3 className="font-medium">Meta Ads verbinden</h3>
-                <p className="text-sm text-muted-foreground">
-                  Verbinden Sie Ihr Meta Ads Konto, um Ihre Werbekampagnen-Metriken zu sehen
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleMetaConnect}
-              disabled={isConnectingMeta}
-              className="flex items-center gap-2"
-            >
-              {isConnectingMeta ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
-                  Verbinde...
-                </>
-              ) : (
-                <>
-                  Mit Meta verbinden
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+              <Button
+                variant="outline"
+                onClick={handleMetaConnect}
+                disabled={isConnectingMeta}
+                className="flex items-center gap-2"
+              >
+                {isConnectingMeta ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
+                    Verbinde...
+                  </>
+                ) : (
+                  <>
+                    Mit Meta verbinden
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Metrics Section */}
         <PerformanceMetrics />
