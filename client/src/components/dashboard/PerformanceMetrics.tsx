@@ -5,18 +5,19 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  ResponsiveContainer, 
   Tooltip,
+  ResponsiveContainer,
   PieChart,
   Pie,
   Cell
 } from 'recharts';
-import { Users, DollarSign, MousePointer, Eye } from 'lucide-react';
+import { Users, DollarSign, MousePointer, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { initFacebookSDK, loginWithFacebook } from "@/lib/facebook-sdk";
+import { initFacebookSDK, loginWithFacebook, openFacebookBusinessIntegration } from "@/lib/facebook-sdk";
+import { MetaIcon } from "../icons/MetaIcon";
 
 // ... (rest of the code remains the same)
 
@@ -247,6 +248,7 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
       await initFacebookSDK();
       const accessToken = await loginWithFacebook();
       
+      // Speichere den Access Token
       const response = await fetch('/api/meta/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -257,8 +259,11 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
         throw new Error('Failed to connect Meta account');
       }
 
+      const { businessId } = await response.json();
+      
+      // Öffne das Business Integration Fenster
+      openFacebookBusinessIntegration(businessId);
       setMetaConnected(true);
-      // Hier könnten wir die Daten neu laden
     } catch (error) {
       console.error('Error connecting Meta account:', error);
     } finally {
@@ -305,7 +310,9 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
           <Button 
             onClick={handleMetaConnect} 
             disabled={isConnectingMeta}
+            className="flex items-center gap-2"
           >
+            <MetaIcon className="h-5 w-5" />
             {isConnectingMeta ? 'Verbinde...' : 'Mit Meta Ads verbinden'}
           </Button>
         )}

@@ -24,6 +24,9 @@ import Support from "./pages/Support";
 import PartnerProgram from "./pages/PartnerProgram";
 import Tutorials from "./pages/Tutorials";
 import ResetPassword from "./pages/ResetPassword.tsx";
+import Privacy from "./pages/Privacy";
+import DataDeletion from "./pages/DataDeletion";
+
 // Auth Provider
 import { AuthProvider, RequireAuth, RequireAdmin } from "./lib/auth.tsx";
 import { GoogleAuthProvider } from "./lib/googleDriveAuth";
@@ -46,6 +49,8 @@ function Router() {
       <Route path="/" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/reset-password/:token" component={ResetPassword} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/data-deletion" component={DataDeletion} />
       <Route path="/onboarding">
         <RequireAuth>
           <OnboardingWizard />
