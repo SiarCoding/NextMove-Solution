@@ -20,14 +20,51 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
+interface Notification {
+  id: number;
+  type: 'lead';
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [phone, setPhone] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Abfrage der Benachrichtigungen
+  const { data: notifications = [] } = useQuery<Notification[]>({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications", {
+        credentials: "include"
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 30000 // Alle 30 Sekunden aktualisieren
+  });
+
+  // Anzahl ungelesener Benachrichtigungen
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAsRead = async (id: number) => {
+    try {
+      await fetch(`/api/notifications/${id}/read`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
 
   const requestCallback = async () => {
     try {
@@ -103,12 +140,40 @@ export function Navbar() {
             </DialogContent>
           </Dialog>
 
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-              2
-            </span>
-          </Button>
+          <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                    {unreadCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel>Benachrichtigungen</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {notifications.length === 0 ? (
+                <div className="p-4 text-sm text-muted-foreground text-center">
+                  Keine neuen Benachrichtigungen
+                </div>
+              ) : (
+                notifications.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    className="flex flex-col items-start p-4 space-y-1 cursor-pointer"
+                    onClick={() => markAsRead(notification.id)}
+                  >
+                    <div className="font-medium">{notification.message}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(notification.createdAt).toLocaleString('de-DE')}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

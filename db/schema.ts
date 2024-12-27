@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, boolean, jsonb, serial, varchar } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -141,6 +141,24 @@ export const companySettings = pgTable("company_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Notifications Schema
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 50 }).notNull(),
+  message: text('message').notNull(),
+  read: boolean('read').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Relations
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod Schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -154,6 +172,8 @@ export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTo
 export const selectPasswordResetTokenSchema = createSelectSchema(passwordResetTokens);
 export const insertCompanySettingsSchema = createInsertSchema(companySettings);
 export const selectCompanySettingsSchema = createSelectSchema(companySettings);
+export const insertNotificationSchema = createInsertSchema(notifications);
+export const selectNotificationSchema = createSelectSchema(notifications);
 
 // Types
 export type User = z.infer<typeof selectUserSchema>;
@@ -162,3 +182,5 @@ export type UserProgress = z.infer<typeof selectProgressSchema>;
 export type Metrics = z.infer<typeof selectMetricsSchema>;
 export type PasswordResetToken = z.infer<typeof selectPasswordResetTokenSchema>;
 export type CompanySettings = z.infer<typeof selectCompanySettingsSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;

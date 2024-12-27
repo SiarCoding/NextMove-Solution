@@ -1,8 +1,8 @@
-import { type Express, type Request, type Response } from "express";
-import { eq, desc } from "drizzle-orm";
+import { type Express, type Request, type Response, type RequestHandler } from "express";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "db";
-import { users, metrics } from "../../db/schema";
-import { type User } from "../types";
+import { users, metrics, notifications } from "../../db/schema";
+import { type User, type Metrics, type NewNotification } from "../../db/schema";
 
 interface MetaMetrics {
   leads: number;
@@ -51,7 +51,7 @@ interface MetricsData {
 
 export default function setupMetaRoutes(app: Express) {
   // Route zum Verbinden des Meta-Kontos
-  app.post('/api/meta/connect', async (req: Request & { user?: User }, res: Response) => {
+  app.post('/api/meta/connect', (async (req: Request & { user?: User }, res: Response) => {
     try {
       console.log('Received Meta connect request');
       
@@ -98,10 +98,10 @@ export default function setupMetaRoutes(app: Express) {
       console.error('Error in /api/meta/connect:', error);
       res.status(500).json({ error: 'Failed to connect Meta account' });
     }
-  });
+  }) as RequestHandler);
 
   // Route zum Abrufen der Meta-Metriken
-  app.get('/api/metrics/:userId', async (req: Request, res: Response) => {
+  app.get('/api/metrics/:userId', (async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
       
@@ -113,11 +113,39 @@ export default function setupMetaRoutes(app: Express) {
       });
 
       if (!metricsData || metricsData.length === 0) {
-        return res.json([]);  // Leeres Array zurückgeben, wenn keine Daten gefunden
+        return res.json([]);
+      }
+
+      // Vergleiche mit vorherigen Metriken für neue Leads
+      const previousMetrics = await db.query.metrics.findFirst({
+        where: and(
+          eq(metrics.userId, userId),
+          sql`date < ${metricsData[0].date}`
+        ),
+        orderBy: desc(metrics.date)
+      });
+
+      const currentLeads = metricsData[0]?.leads ?? 0;
+      const previousLeads = previousMetrics?.leads ?? 0;
+
+      if (currentLeads > previousLeads) {
+        // Neue Leads gefunden
+        const newLeads = currentLeads - previousLeads;
+        
+        // Erstelle Benachrichtigung
+        const newNotification: NewNotification = {
+          userId,
+          type: 'lead',
+          message: `${newLeads} neue${newLeads === 1 ? 'r' : ''} Lead${newLeads === 1 ? '' : 's'} über Meta Ads`,
+          read: false,
+          createdAt: new Date()
+        };
+        
+        await db.insert(notifications).values(newNotification);
       }
 
       // Sortiere die Daten nach Datum (älteste zuerst)
-      const sortedMetrics = [...metricsData].sort((a: MetricsData, b: MetricsData) => 
+      const sortedMetrics = [...metricsData].sort((a, b) => 
         new Date(a.date).getTime() - new Date(b.date).getTime()
       );
 
@@ -126,10 +154,55 @@ export default function setupMetaRoutes(app: Express) {
       console.error('Error fetching metrics:', error);
       res.status(500).json({ error: 'Failed to fetch metrics' });
     }
-  });
+  }) as RequestHandler);
+
+  // Route zum Abrufen der Benachrichtigungen
+  app.get('/api/notifications', (async (req: Request & { user?: User }, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const userNotifications = await db.query.notifications.findMany({
+        where: eq(notifications.userId, userId),
+        orderBy: desc(notifications.createdAt),
+        limit: 50
+      });
+
+      res.json(userNotifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+  }) as RequestHandler);
+
+  // Route zum Markieren einer Benachrichtigung als gelesen
+  app.post('/api/notifications/:id/read', (async (req: Request & { user?: User }, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const notificationId = parseInt(req.params.id);
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      await db.update(notifications)
+        .set({ read: true })
+        .where(and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, userId)
+        ));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ error: 'Failed to mark notification as read' });
+    }
+  }) as RequestHandler);
 
   // Facebook Data Deletion Endpoint
-  app.post('/api/data-deletion', async (req: Request, res: Response) => {
+  app.post('/api/data-deletion', (async (req: Request, res: Response) => {
     try {
       const { signed_request } = req.body;
       
@@ -160,7 +233,7 @@ export default function setupMetaRoutes(app: Express) {
         url: "https://app.nextmove-consulting.de/data-deletion"
       });
     }
-  });
+  }) as RequestHandler);
 
   // Helper function to fetch Meta metrics
   async function fetchMetaMetrics(userAccessToken: string): Promise<MetaMetrics> {
