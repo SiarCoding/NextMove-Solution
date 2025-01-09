@@ -1,51 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   AreaChart,
   Area,
+  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
-  ResponsiveContainer,
-} from 'recharts';
-import { Users, DollarSign, MousePointer, Eye } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/lib/auth';
-import { Button } from '@/components/ui/button';
-import { initFacebookSDK, connectToMetaAPI } from '@/lib/facebook-sdk';
+} from "recharts";
+import { Users, DollarSign, MousePointer, Eye } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
 
+// Kleiner Datentyp für die AdAccounts:
 interface AdAccount {
   account_id: string;
   name: string;
-  // weitere Felder, falls nötig
+  // ggf. mehr Felder, falls gebraucht
 }
 
-// Typdefinitionen für Metriken
-interface MetricDataPoint {
+// Typen für die "metrischen" Daten
+interface DBMetric {
   leads: number;
-  adSpend: string; // DB decimal als string
+  adSpend: string; // decimal in DB => string
   clicks: number;
   impressions: number;
-  period: string;
+  date: string; // Zeitstring
 }
 
-interface MetricsData {
-  daily: MetricDataPoint[];
-  weekly: MetricDataPoint[];
-  monthly: MetricDataPoint[];
-  total: MetricDataPoint[];
-}
-
-// Falls du in React State lieber die rohen DB-Einträge verwendest,
-// könntest du stattdessen ein `Metrics[]` anlegen.
-// Hier belassen wir es bei einer abstrakten "MetricsData"-Struktur.
-type TimeframeType = 'daily' | 'weekly' | 'monthly' | 'total';
-
-interface ChartDataPoint {
+type ChartDataPoint = {
   period: string;
   value: number;
-}
+};
 
+// Example-Funktionen zum Formatieren
 function formatNumber(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
@@ -53,20 +41,20 @@ function formatNumber(value: number) {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
   }).format(value);
 }
 
 const COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--primary) / 0.8)',
-  'hsl(var(--primary) / 0.6)',
-  'hsl(var(--primary) / 0.4)',
-  'hsl(var(--primary) / 0.3)',
-  'hsl(var(--primary) / 0.2)',
-  'hsl(var(--primary) / 0.1)',
+  "hsl(var(--primary))",
+  "hsl(var(--primary) / 0.8)",
+  "hsl(var(--primary) / 0.6)",
+  "hsl(var(--primary) / 0.4)",
+  "hsl(var(--primary) / 0.3)",
+  "hsl(var(--primary) / 0.2)",
+  "hsl(var(--primary) / 0.1)",
 ];
 
 interface MetricCardProps {
@@ -74,7 +62,7 @@ interface MetricCardProps {
   value: string | number;
   weekTotal: string | number;
   icon: React.ReactNode;
-  chartType: 'area' | 'pie';
+  chartType: "area" | "pie";
   data: ChartDataPoint[];
   formatter?: (value: number) => string;
 }
@@ -101,7 +89,7 @@ function MetricCard({
         </div>
         <div className="h-[80px] mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            {chartType === 'area' ? (
+            {chartType === "area" ? (
               <AreaChart data={data}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -138,10 +126,7 @@ function MetricCard({
                   isAnimationActive={false}
                 >
                   {data.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
               </PieChart>
@@ -153,246 +138,173 @@ function MetricCard({
   );
 }
 
-// Hier ein Beispiel mit leeren "Timeframe"-Daten.
-// Du kannst es später anpassen, wenn du die echten DB-Werte
-// in day/week/month aufteilst.
-const EMPTY_DATA: MetricsData = {
-  daily: Array(7).fill({ leads: 0, adSpend: '0', clicks: 0, impressions: 0, period: '' }),
-  weekly: Array(4).fill({ leads: 0, adSpend: '0', clicks: 0, impressions: 0, period: '' }),
-  monthly: Array(12).fill({ leads: 0, adSpend: '0', clicks: 0, impressions: 0, period: '' }),
-  total: Array(4).fill({ leads: 0, adSpend: '0', clicks: 0, impressions: 0, period: '' }),
-};
-
 export default function PerformanceMetrics() {
-  const { user } = useAuth(); // z.B. user.id = 101
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  // Ad-Accounts in einem Select anzeigen
+  const { user } = useAuth();
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
-  const [selectedAdAccount, setSelectedAdAccount] = useState<string>('');
+  const [selectedAccount, setSelectedAccount] = useState<string>("");
+  const [dbMetrics, setDbMetrics] = useState<DBMetric[]>([]);
 
-  // Hier landen die aufbereiteten Metriken, die wir nach dem Fetch rendern.
-  const [metricsData, setMetricsData] = useState<MetricsData>(EMPTY_DATA);
-
-  // Ggf. Zeit-Range (daily/weekly/...)
-  const [timeframe, setTimeframe] = useState<TimeframeType>('daily');
-
-  // 1) Facebook-SDK beim Start laden
-  useEffect(() => {
-    initFacebookSDK().catch(console.error);
-  }, []);
-
-  // 2) Ad-Accounts vom Server laden, wenn metaConnected == true
+  // ----------------------------
+  // 1) AdAccounts laden
+  // ----------------------------
   useEffect(() => {
     if (!user) return;
-    // Hole die Liste der Ad-Accounts
-    fetch('/api/meta/adaccounts', {
-      credentials: 'include',
-    })
+    // /api/meta/adaccounts
+    fetch("/api/meta/adaccounts", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
+        // Falls hier ein {error: "..."} kommt => abfangen
         if (Array.isArray(data)) {
-          setAdAccounts(data); // [ { account_id, name, ... }, ... ]
+          setAdAccounts(data);
+        } else {
+          console.warn("No ad accounts found or error:", data);
         }
       })
-      .catch((err) => console.error('Failed to load adaccounts:', err));
+      .catch((err) => console.error("Failed to load adaccounts:", err));
   }, [user]);
 
-  // 3) Metric-Daten vom Server laden
-  const loadMetricsFromServer = () => {
+  // ----------------------------
+  // 2) DB-Metrics laden
+  // ----------------------------
+  function loadMetrics() {
     if (!user) return;
-    fetch(`/api/metrics/${user.id}`, {
-      credentials: 'include',
-    })
+    fetch(`/api/metrics/${user.id}`, { credentials: "include" })
       .then((res) => res.json())
-      .then((raw) => {
-        // raw kann ein Array von DB-Einträgen sein (z.B. "latest 30 entries").
-        // Du müsstest hier die Umwandlung in daily/weekly/monthly machen,
-        // falls du das so willst. Zum Beispiel:
-        const newData: MetricsData = convertDbMetricsToTimescale(raw);
-        setMetricsData(newData);
+      .then((metrics: DBMetric[]) => {
+        // Speichern im State
+        setDbMetrics(metrics);
       })
-      .catch((err) => console.error('Failed to load metrics:', err));
-  };
-
-  // 4) Funktion: Facebook OAuth-Login
-  const handleMetaConnect = async () => {
-    try {
-      setIsConnecting(true);
-      await connectToMetaAPI();
-      // Danach: UI reload -> user.metaConnected = true -> ...
-    } catch (error) {
-      console.error('Failed to connect Meta:', error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  // 5) Klick: Insights für das ausgewählte Konto laden
-  const handleFetchInsights = () => {
-    if (!selectedAdAccount) {
-      alert('Bitte zuerst ein Werbekonto auswählen!');
-      return;
-    }
-    fetch('/api/meta/fetch-insights', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ adAccountId: `act_${selectedAdAccount}`.replace(/^act_/, 'act_') }),
-    })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.error) {
-          console.error('Error fetching insights:', json.error);
-        } else {
-          // Nachdem die Daten gespeichert wurden, lade sie neu
-          loadMetricsFromServer();
-        }
-      })
-      .catch((err) => console.error('Failed to fetch insights:', err));
-  };
-
-  // Schlichtes Beispiel: "DB-Einträge => daily/weekly..."
-  // Du müsstest hier echte Zeit-Buckets bilden,
-  // wir machen nur "total" als Demo.
-  function convertDbMetricsToTimescale(dbRows: any[]): MetricsData {
-    if (!Array.isArray(dbRows) || dbRows.length === 0) {
-      return EMPTY_DATA;
-    }
-    // Summiere mal alles in "total" als Demo
-    let sumLeads = 0;
-    let sumAdSpend = 0;
-    let sumClicks = 0;
-    let sumImpressions = 0;
-    for (const row of dbRows) {
-      sumLeads += row.leads ?? 0;
-      sumAdSpend += parseFloat(row.adSpend || '0');
-      sumClicks += row.clicks ?? 0;
-      sumImpressions += row.impressions ?? 0;
-    }
-    // Nur "total" belegen, Rest leer
-    const total = [
-      {
-        leads: sumLeads,
-        adSpend: sumAdSpend.toString(),
-        clicks: sumClicks,
-        impressions: sumImpressions,
-        period: 'Total',
-      },
-    ];
-    return {
-      daily: [],
-      weekly: [],
-      monthly: [],
-      total,
-    };
+      .catch((err) => console.error("Failed to load metrics:", err));
   }
 
-  // Die "active" Zeitreihe
-  const periodData = metricsData[timeframe] ?? [];
-  // Summiere Metriken
-  const currentMetrics = {
-    leads: periodData.reduce((acc, p) => acc + p.leads, 0),
-    adSpend: periodData.reduce((acc, p) => acc + parseFloat(p.adSpend), 0),
-    clicks: periodData.reduce((acc, p) => acc + p.clicks, 0),
-    impressions: periodData.reduce((acc, p) => acc + p.impressions, 0),
+  // Sofort beim Mount einmal laden
+  useEffect(() => {
+    loadMetrics();
+  }, [user]);
+
+  // ----------------------------
+  // 3) Insights für gewähltes Konto holen
+  // ----------------------------
+  const handleFetchInsights = async () => {
+    if (!selectedAccount) {
+      alert("Bitte ein Werbekonto auswählen");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/meta/fetch-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ adAccountId: selectedAccount }), // e.g. "123456789"
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        console.error("Error fetching insights:", json);
+        alert(json.error || "Fehler beim Abrufen der Insights");
+        return;
+      }
+
+      // Erfolg => metrics neu laden
+      loadMetrics();
+    } catch (error) {
+      console.error("Failed to fetch insights:", error);
+    }
   };
+
+  // ----------------------------
+  // 4) Chart-Daten vorbereiten
+  // ----------------------------
+  // (Beispiel: Zeige einfach alle Einträge als daily)
+  const chartDataLeads: ChartDataPoint[] = dbMetrics.map((m) => ({
+    period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
+    value: m.leads,
+  }));
+  const chartDataSpend: ChartDataPoint[] = dbMetrics.map((m) => ({
+    period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
+    value: parseFloat(m.adSpend),
+  }));
+  const chartDataClicks: ChartDataPoint[] = dbMetrics.map((m) => ({
+    period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
+    value: m.clicks,
+  }));
+  const chartDataImpr: ChartDataPoint[] = dbMetrics.map((m) => ({
+    period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
+    value: m.impressions,
+  }));
+
+  // Summen (z.B. "Aktuelle Woche")
+  const totalLeads = dbMetrics.reduce((acc, m) => acc + m.leads, 0);
+  const totalSpend = dbMetrics.reduce(
+    (acc, m) => acc + parseFloat(m.adSpend),
+    0
+  );
+  const totalClicks = dbMetrics.reduce((acc, m) => acc + m.clicks, 0);
+  const totalImpr = dbMetrics.reduce((acc, m) => acc + m.impressions, 0);
 
   return (
     <div className="space-y-4">
-      {/* 1) Button, um Meta-Login zu starten, falls nicht connected */}
-      {!user?.metaConnected && (
-        <Button onClick={handleMetaConnect} disabled={isConnecting}>
-          {isConnecting ? 'Connecting...' : 'Connect Meta'}
-        </Button>
-      )}
+      {/* 1) Werbekonto-Auswahl */}
+      <Card>
+        <CardContent>
+          <label htmlFor="adAccountSelect" className="font-semibold mr-2">
+            Wähle ein Ad-Konto:
+          </label>
+          <select
+            id="adAccountSelect"
+            value={selectedAccount}
+            onChange={(e) => setSelectedAccount(e.target.value)}
+            className="border p-1"
+          >
+            <option value="">-- bitte wählen --</option>
+            {adAccounts.map((acc) => (
+              <option key={acc.account_id} value={acc.account_id}>
+                {acc.name} (ID: {acc.account_id})
+              </option>
+            ))}
+          </select>
 
-      {/* 2) Dropdown mit Ad-Accounts */}
-      <div>
-        <label htmlFor="adAccountSelect">Wähle dein Werbekonto: </label>
-        <select
-          id="adAccountSelect"
-          value={selectedAdAccount}
-          onChange={(e) => setSelectedAdAccount(e.target.value)}
-        >
-          <option value="">-- bitte wählen --</option>
-          {adAccounts.map((acc) => (
-            <option key={acc.account_id} value={acc.account_id}>
-              {acc.name} (ID: {acc.account_id})
-            </option>
-          ))}
-        </select>
-        <Button onClick={handleFetchInsights} className="ml-2">
-          Insights laden
-        </Button>
-      </div>
+          <Button onClick={handleFetchInsights} className="ml-2">
+            Insights laden
+          </Button>
+        </CardContent>
+      </Card>
 
-      {/* 3) Tabs für daily / weekly / monthly / total */}
-      <div className="flex justify-between items-center">
-        <Tabs defaultValue="daily" className="w-[400px]">
-          <TabsList>
-            <TabsTrigger value="daily" onClick={() => setTimeframe('daily')}>
-              Täglich
-            </TabsTrigger>
-            <TabsTrigger value="weekly" onClick={() => setTimeframe('weekly')}>
-              Wöchentlich
-            </TabsTrigger>
-            <TabsTrigger value="monthly" onClick={() => setTimeframe('monthly')}>
-              Monatlich
-            </TabsTrigger>
-            <TabsTrigger value="total" onClick={() => setTimeframe('total')}>
-              Total
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {/* 4) Anzeige der aktuellen Summen */}
+      {/* 2) Charts */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Leads"
-          value={formatNumber(currentMetrics.leads)}
-          weekTotal={formatNumber(currentMetrics.leads)}
+          value={formatNumber(totalLeads)}
+          weekTotal={formatNumber(totalLeads)}
           icon={<Users className="h-4 w-4" />}
           chartType="area"
-          data={periodData.map((d): ChartDataPoint => ({
-            period: d.period,
-            value: d.leads,
-          }))}
+          data={chartDataLeads}
         />
         <MetricCard
           title="Ad Spend"
-          value={formatCurrency(currentMetrics.adSpend)}
-          weekTotal={formatCurrency(currentMetrics.adSpend)}
+          value={formatCurrency(totalSpend)}
+          weekTotal={formatCurrency(totalSpend)}
           icon={<DollarSign className="h-4 w-4" />}
           chartType="area"
-          data={periodData.map((d): ChartDataPoint => ({
-            period: d.period,
-            value: parseFloat(d.adSpend),
-          }))}
+          data={chartDataSpend}
           formatter={formatCurrency}
         />
         <MetricCard
           title="Clicks"
-          value={formatNumber(currentMetrics.clicks)}
-          weekTotal={formatNumber(currentMetrics.clicks)}
+          value={formatNumber(totalClicks)}
+          weekTotal={formatNumber(totalClicks)}
           icon={<MousePointer className="h-4 w-4" />}
           chartType="area"
-          data={periodData.map((d): ChartDataPoint => ({
-            period: d.period,
-            value: d.clicks,
-          }))}
+          data={chartDataClicks}
         />
         <MetricCard
           title="Impressions"
-          value={formatNumber(currentMetrics.impressions)}
-          weekTotal={formatNumber(currentMetrics.impressions)}
+          value={formatNumber(totalImpr)}
+          weekTotal={formatNumber(totalImpr)}
           icon={<Eye className="h-4 w-4" />}
           chartType="area"
-          data={periodData.map((d): ChartDataPoint => ({
-            period: d.period,
-            value: d.impressions,
-          }))}
+          data={chartDataImpr}
         />
       </div>
     </div>
