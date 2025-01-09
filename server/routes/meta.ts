@@ -87,11 +87,11 @@ export default function setupMetaRoutes(app: Express) {
       await db.insert(metrics).values({
         userId,
         leads: Math.floor(metaData.leads),
-        adSpend: metaData.spend.toString(), // Konvertiere zu String für decimal Typ
+        adSpend: metaData.spend.toString(), // decimal erwartet i.d.R. einen string (oder number)
         clicks: Math.floor(metaData.clicks),
         impressions: Math.floor(metaData.impressions),
         date: new Date()
-      });
+      });     
 
       res.json({ success: true });
     } catch (error) {
@@ -100,7 +100,7 @@ export default function setupMetaRoutes(app: Express) {
     }
   }) as RequestHandler);
 
-  // Route zum Abrufen der Meta-Metriken
+  // Route zum Abrufen der Meta-Metriken 
   app.get('/api/metrics/:userId', (async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);

@@ -31,7 +31,7 @@ declare global {
 // Initialisiere das Facebook SDK für OAuth und Marketing
 export function initFacebookSDK(): Promise<void> {
   return new Promise<void>((resolve) => {
-    // Prüfe ob das SDK bereits geladen ist
+    // Prüfe, ob das SDK bereits geladen ist
     if (window.FB) {
       window.FB.init({
         appId: import.meta.env.VITE_FACEBOOK_MARKETING_APP_ID,

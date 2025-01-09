@@ -22,7 +22,7 @@ import { MetaIcon } from "../icons/MetaIcon";
 // Typdefinitionen
 interface MetricDataPoint {
   leads: number;
-  adSpend: string; // Ändern von number zu string
+  adSpend: string; // Für DECIMAL aus der DB als string
   clicks: number;
   impressions: number;
   period: string;
@@ -142,10 +142,10 @@ const MetricCard = ({
 
 // Leere Daten für den Initialzustand
 const EMPTY_DATA: MetricsData = {
-  daily: Array(7).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
-  weekly: Array(4).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
-  monthly: Array(12).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" }),
-  total: Array(4).fill({ leads: 0, adSpend: 0, clicks: 0, impressions: 0, period: "" })
+  daily: Array(7).fill({ leads: 0, adSpend: "0", clicks: 0, impressions: 0, period: "" }),
+  weekly: Array(4).fill({ leads: 0, adSpend: "0", clicks: 0, impressions: 0, period: "" }),
+  monthly: Array(12).fill({ leads: 0, adSpend: "0", clicks: 0, impressions: 0, period: "" }),
+  total: Array(4).fill({ leads: 0, adSpend: "0", clicks: 0, impressions: 0, period: "" })
 };
 
 interface PerformanceMetricsProps {
@@ -168,7 +168,7 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
       // Die UI wird automatisch durch den Page Reload in connectToMetaAPI aktualisiert
     } catch (error) {
       console.error('Failed to connect Meta:', error);
-      // Hier können Sie einen Toast oder eine andere Fehlermeldung anzeigen
+      // Hier kannst du z.B. einen Toast oder eine andere Fehlermeldung anzeigen
     } finally {
       setIsConnecting(false);
     }
@@ -178,8 +178,9 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
   
   const currentMetrics = {
     leads: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.leads, 0),
-    adSpend: periodData.reduce((sum: number, day: MetricDataPoint) => 
-      sum + parseFloat(day.adSpend || '0'), 0), // Parse string zu number
+    adSpend: periodData.reduce((sum: number, day: MetricDataPoint) =>
+      sum + parseFloat(day.adSpend || '0'), 0
+    ),
     clicks: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.clicks, 0),
     impressions: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.impressions, 0)
   };
@@ -231,7 +232,7 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
           chartType="area"
           data={periodData.map((d: MetricDataPoint): ChartDataPoint => ({ 
             period: d.period, 
-            value: parseFloat(d.adSpend || '0') // Parse string zu number für das Chart
+            value: parseFloat(d.adSpend || '0')
           }))}
           formatter={formatCurrency}
         />
