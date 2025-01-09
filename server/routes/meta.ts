@@ -86,10 +86,10 @@ export default function setupMetaRoutes(app: Express) {
       // Store metrics in database
       await db.insert(metrics).values({
         userId,
-        leads: metaData.leads,
-        adSpend: metaData.spend,
-        clicks: metaData.clicks,
-        impressions: metaData.impressions,
+        leads: Math.floor(metaData.leads),
+        adSpend: metaData.spend.toString(), // Konvertiere zu String für decimal Typ
+        clicks: Math.floor(metaData.clicks),
+        impressions: Math.floor(metaData.impressions),
         date: new Date()
       });
 

@@ -2,6 +2,8 @@ import { pgTable, text, integer, timestamp, boolean, jsonb, serial, varchar } fr
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
+import { decimal } from "drizzle-orm/pg-core";
+
 
 export const companies = pgTable("companies", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -61,7 +63,7 @@ export const metrics = pgTable("metrics", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   userId: integer("user_id").references(() => users.id).notNull(),
   leads: integer("leads").default(0),
-  adSpend: integer("ad_spend").default(0),
+  adSpend: decimal("ad_spend", { precision: 10, scale: 2 }).notNull().default("0"),
   clicks: integer("clicks").default(0),
   impressions: integer("impressions").default(0),
   date: timestamp("date").defaultNow().notNull(),

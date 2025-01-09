@@ -22,7 +22,7 @@ import { MetaIcon } from "../icons/MetaIcon";
 // Typdefinitionen
 interface MetricDataPoint {
   leads: number;
-  adSpend: number;
+  adSpend: string; // Ändern von number zu string
   clicks: number;
   impressions: number;
   period: string;
@@ -178,7 +178,8 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
   
   const currentMetrics = {
     leads: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.leads, 0),
-    adSpend: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.adSpend, 0),
+    adSpend: periodData.reduce((sum: number, day: MetricDataPoint) => 
+      sum + parseFloat(day.adSpend || '0'), 0), // Parse string zu number
     clicks: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.clicks, 0),
     impressions: periodData.reduce((sum: number, day: MetricDataPoint) => sum + day.impressions, 0)
   };
@@ -230,7 +231,7 @@ export default function PerformanceMetrics({ data = EMPTY_DATA }: PerformanceMet
           chartType="area"
           data={periodData.map((d: MetricDataPoint): ChartDataPoint => ({ 
             period: d.period, 
-            value: d.adSpend 
+            value: parseFloat(d.adSpend || '0') // Parse string zu number für das Chart
           }))}
           formatter={formatCurrency}
         />
