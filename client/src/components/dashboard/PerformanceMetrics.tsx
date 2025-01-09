@@ -1,35 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import { Users, DollarSign, MousePointer, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 
-// DB-Metrics (bereits in DB gespeicherte Insights)
-interface DBMetric {
+// --------------------------------------
+// Datentyp, den wir vom Endpoint erhalten
+// --------------------------------------
+interface MetaDayInsights {
+  date: string;         // z.B. "2025-01-10"
   leads: number;
-  adSpend: string; // decimal in DB => string
+  adSpend: string;      // decimal as string
   clicks: number;
   impressions: number;
-  date: string; // ISO Zeitstring, z. B. "2025-01-10T14:13:59.188Z"
 }
 
-// Zur Anzeige in den Charts
-type ChartDataPoint = {
-  // z. B. "Mo" oder "2025-01-05"
-  period: string;
+// Für den Chart
+interface ChartData {
+  period: string; // z. B. "10.01."
   value: number;
-};
+}
 
-// Hilfsfunktionen
+// Hilfsfunktionen zum Formatieren
 function formatNumber(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
@@ -43,135 +47,227 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-// Metrik-Karten-Props
+const COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--primary) / 0.8)",
+  "hsl(var(--primary) / 0.6)",
+  "hsl(var(--primary) / 0.4)",
+  "hsl(var(--primary) / 0.3)",
+  "hsl(var(--primary) / 0.2)",
+  "hsl(var(--primary) / 0.1)",
+];
+
+// --------------------------------------
+// MetricCard – kann AreaChart oder PieChart sein
+// --------------------------------------
 interface MetricCardProps {
   title: string;
-  // Die "Hauptzahl", z. B. "42"
   value: string | number;
-  // Die "Zweitinfo", z. B. "+42 diese Woche"
-  weekTotal: string | number;
+  secondaryValue: string | number; // z. B. "+42 diese Woche"
   icon: React.ReactNode;
-  data: ChartDataPoint[];
-  // line chart statt area
+  chartType: "area" | "pie";
+  data: ChartData[];
   formatter?: (value: number) => string;
 }
 
 function MetricCard({
   title,
   value,
-  weekTotal,
+  secondaryValue,
   icon,
+  chartType,
   data,
   formatter = formatNumber,
 }: MetricCardProps) {
+  // Rendert je nach "chartType" das Diagramm
+  const renderChart = () => {
+    if (chartType === "pie") {
+      // Pie-Daten
+      const totalSum = data.reduce((sum, d) => sum + d.value, 0);
+      const pieData = data.map((d) => ({
+        ...d,
+        percentage: totalSum === 0 ? 0 : (d.value / totalSum) * 100,
+      }));
+
+      return (
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="period"
+              cx="50%"
+              cy="50%"
+              innerRadius={35}
+              outerRadius={50}
+              stroke="hsl(var(--background))"
+              strokeWidth={2}
+            >
+              {pieData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index % COLORS.length]}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(val: number, name: string, props: any) => {
+                const pct = props.payload.percentage.toFixed(1);
+                return [`${formatter(val)} (${pct}%)`, `${name}`];
+              }}
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "var(--radius)",
+                color: "hsl(var(--foreground))",
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    // default = "area" chart
+    return (
+      <ResponsiveContainer>
+        <AreaChart data={data}>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="hsl(var(--border))"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="period"
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            width={30}
+          />
+          <Tooltip
+            formatter={(val: any) => formatter(val)}
+            contentStyle={{
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "var(--radius)",
+              color: "hsl(var(--foreground))",
+            }}
+          />
+          <defs>
+            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="5%"
+                stopColor="hsl(var(--primary))"
+                stopOpacity={0.2}
+              />
+              <stop
+                offset="95%"
+                stopColor="hsl(var(--primary))"
+                stopOpacity={0}
+              />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke="hsl(var(--primary))"
+            fill="url(#colorValue)"
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
+        <div>
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {secondaryValue} in diesem Zeitraum
+          </p>
+        </div>
+        <div className="p-2 bg-primary/10 rounded-xl">{icon}</div>
       </CardHeader>
-
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        <div className="text-xs text-muted-foreground">
-          +{weekTotal} in diesem Zeitraum
-        </div>
-        <div className="h-[80px] mt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--primary) / 0.2)" />
-              <XAxis dataKey="period" hide />
-              <YAxis hide />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <div className="h-[120px] mt-4">{renderChart()}</div>
       </CardContent>
     </Card>
   );
 }
 
-// Zeitintervalle
+// --------------------------------------
+// Die Hauptkomponente
+// --------------------------------------
 type Timeframe = "daily" | "weekly" | "monthly" | "total";
-
-// Filter-Funktion: Greift auf DB-Metrics zu und wendet Zeitlimits an
-function filterMetricsByTimeframe(
-  metrics: DBMetric[],
-  timeframe: Timeframe
-): DBMetric[] {
-  if (timeframe === "total") {
-    return metrics; // Alle Einträge
-  }
-
-  const now = new Date();
-  let daysBack = 7; // weekly = 7 Tage
-  if (timeframe === "daily") daysBack = 1;
-  else if (timeframe === "monthly") daysBack = 30;
-
-  const cutoff = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-  return metrics.filter((m) => new Date(m.date) >= cutoff);
-}
 
 export default function PerformanceMetrics() {
   const { user } = useAuth();
-  const [dbMetrics, setDbMetrics] = useState<DBMetric[]>([]);
   const [timeframe, setTimeframe] = useState<Timeframe>("weekly");
+  const [insights, setInsights] = useState<MetaDayInsights[]>([]);
 
+  // Jedes Mal, wenn timeframe sich ändert, laden wir neu:
   useEffect(() => {
     if (!user) return;
-    // DB-Metrics laden
-    fetch(`/api/metrics/${user.id}`, { credentials: "include" })
+    fetch(`/api/meta/fetch-insights?timeframe=${timeframe}`, {
+      credentials: "include",
+    })
       .then((res) => res.json())
-      .then((metrics: DBMetric[]) => {
-        setDbMetrics(metrics);
+      .then((data: MetaDayInsights[]) => {
+        setInsights(data || []);
       })
-      .catch((err) => console.error("Failed to load metrics:", err));
-  }, [user]);
+      .catch((err) => console.error("Failed to fetch insights:", err));
+  }, [user, timeframe]);
 
-  // Nur die Metriken im gewählten Zeitraum
-  const filteredMetrics = filterMetricsByTimeframe(dbMetrics, timeframe);
+  // Summen
+  const totalLeads = insights.reduce((sum, d) => sum + d.leads, 0);
+  const totalSpend = insights.reduce((sum, d) => sum + parseFloat(d.adSpend), 0);
+  const totalClicks = insights.reduce((sum, d) => sum + d.clicks, 0);
+  const totalImpressions = insights.reduce((sum, d) => sum + d.impressions, 0);
 
-  // CHART-Daten für Leads, AdSpend, Clicks, Impressions
-  // => du kannst hier beliebig "summieren pro Tag" oder "einfach Metrik pro DB-Zeile" ...
-  // derzeit: 1 DB-Eintrag = 1 Chart-Punkt
-  const chartDataLeads: ChartDataPoint[] = filteredMetrics.map((m) => ({
-    period: new Date(m.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
-    value: m.leads,
+  // Chart-Daten: 
+  // => Wir wandeln date => "DD.MM." z. B.
+  const leadsData: ChartData[] = insights.map((d) => ({
+    period: new Date(d.date).toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+    }),
+    value: d.leads,
   }));
-  const chartDataSpend: ChartDataPoint[] = filteredMetrics.map((m) => ({
-    period: new Date(m.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
-    value: parseFloat(m.adSpend),
+  const spendData: ChartData[] = insights.map((d) => ({
+    period: new Date(d.date).toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+    }),
+    value: parseFloat(d.adSpend),
   }));
-  const chartDataClicks: ChartDataPoint[] = filteredMetrics.map((m) => ({
-    period: new Date(m.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
-    value: m.clicks,
+  const clicksData: ChartData[] = insights.map((d) => ({
+    period: new Date(d.date).toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+    }),
+    value: d.clicks,
   }));
-  const chartDataImpr: ChartDataPoint[] = filteredMetrics.map((m) => ({
-    period: new Date(m.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
-    value: m.impressions,
+  const impressionsData: ChartData[] = insights.map((d) => ({
+    period: new Date(d.date).toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+    }),
+    value: d.impressions,
   }));
-
-  // Summen im Zeitraum
-  const totalLeads = filteredMetrics.reduce((acc, m) => acc + m.leads, 0);
-  const totalSpend = filteredMetrics.reduce((acc, m) => acc + parseFloat(m.adSpend), 0);
-  const totalClicks = filteredMetrics.reduce((acc, m) => acc + m.clicks, 0);
-  const totalImpr = filteredMetrics.reduce((acc, m) => acc + m.impressions, 0);
 
   return (
     <div className="space-y-4">
-      {/* Tabs (Daily / Weekly / Monthly / Total) */}
-      <Tabs
-        defaultValue="weekly"
-        onValueChange={(val) => setTimeframe(val as Timeframe)}
-      >
+      {/* Tabs zum Umschalten */}
+      <Tabs defaultValue="weekly" onValueChange={(val) => setTimeframe(val as Timeframe)}>
         <TabsList>
           <TabsTrigger value="daily">Täglich</TabsTrigger>
           <TabsTrigger value="weekly">Wöchentlich</TabsTrigger>
@@ -180,36 +276,40 @@ export default function PerformanceMetrics() {
         </TabsList>
       </Tabs>
 
-      {/* Vier Karten nebeneinander */}
+      {/* Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Leads"
           value={formatNumber(totalLeads)}
-          weekTotal={formatNumber(totalLeads)}
+          secondaryValue={formatNumber(totalLeads)}
           icon={<Users className="h-4 w-4" />}
-          data={chartDataLeads}
+          chartType="area"
+          data={leadsData}
         />
         <MetricCard
           title="Ad Spend"
           value={formatCurrency(totalSpend)}
-          weekTotal={formatCurrency(totalSpend)}
+          secondaryValue={formatCurrency(totalSpend)}
           icon={<DollarSign className="h-4 w-4" />}
-          data={chartDataSpend}
+          chartType="area"
+          data={spendData}
           formatter={formatCurrency}
         />
         <MetricCard
           title="Clicks"
           value={formatNumber(totalClicks)}
-          weekTotal={formatNumber(totalClicks)}
+          secondaryValue={formatNumber(totalClicks)}
           icon={<MousePointer className="h-4 w-4" />}
-          data={chartDataClicks}
+          chartType="area"
+          data={clicksData}
         />
         <MetricCard
           title="Impressions"
-          value={formatNumber(totalImpr)}
-          weekTotal={formatNumber(totalImpr)}
+          value={formatNumber(totalImpressions)}
+          secondaryValue={formatNumber(totalImpressions)}
           icon={<Eye className="h-4 w-4" />}
-          data={chartDataImpr}
+          chartType="pie"
+          data={impressionsData}
         />
       </div>
     </div>
