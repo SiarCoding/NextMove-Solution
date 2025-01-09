@@ -9,23 +9,17 @@ import {
 } from "recharts";
 import { Users, DollarSign, MousePointer, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; 
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
-// Kleiner Datentyp für die AdAccounts:
-interface AdAccount {
-  account_id: string;
-  name: string;
-  // ggf. mehr Felder, falls gebraucht
-}
-
-// Typen für die "metrischen" Daten
+// Typen für die DB-Metriken (bereits in DB gespeicherte Insights)
 interface DBMetric {
   leads: number;
   adSpend: string; // decimal in DB => string
   clicks: number;
   impressions: number;
-  date: string; // Zeitstring
+  date: string; // ISO Zeitstring, z.B. "2025-01-10T14:13:59.188Z"
 }
 
 type ChartDataPoint = {
@@ -33,7 +27,7 @@ type ChartDataPoint = {
   value: number;
 };
 
-// Example-Funktionen zum Formatieren
+// Hilfsfunktionen zum Formatieren
 function formatNumber(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
@@ -126,7 +120,7 @@ function MetricCard({
                   isAnimationActive={false}
                 >
                   {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
               </PieChart>
@@ -138,140 +132,90 @@ function MetricCard({
   );
 }
 
+// Wir wollen verschiedene Zeiträume: daily, weekly, monthly, total
+type Timeframe = "daily" | "weekly" | "monthly" | "total";
+
+// Hilfsfunktion: Filtere dbMetrics nach Zeitbereich
+function filterMetricsByTimeframe(
+  metrics: DBMetric[],
+  timeframe: Timeframe
+): DBMetric[] {
+  if (timeframe === "total") {
+    return metrics;
+  }
+  const now = new Date();
+  let daysBack = 7; // default weekly
+  if (timeframe === "daily") daysBack = 1;
+  else if (timeframe === "monthly") daysBack = 30;
+
+  // Schnittpunkt ab (z. B. jetzt - 7 Tage)
+  const cutoff = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+
+  return metrics.filter((m) => {
+    const metricDate = new Date(m.date);
+    return metricDate >= cutoff;
+  });
+}
+
 export default function PerformanceMetrics() {
   const { user } = useAuth();
-  const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [dbMetrics, setDbMetrics] = useState<DBMetric[]>([]);
+  const [timeframe, setTimeframe] = useState<Timeframe>("weekly");
 
-  // ----------------------------
-  // 1) AdAccounts laden
-  // ----------------------------
+  // Metriken beim Mount laden
   useEffect(() => {
-    if (!user) return;
-    // /api/meta/adaccounts
-    fetch("/api/meta/adaccounts", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        // Falls hier ein {error: "..."} kommt => abfangen
-        if (Array.isArray(data)) {
-          setAdAccounts(data);
-        } else {
-          console.warn("No ad accounts found or error:", data);
-        }
-      })
-      .catch((err) => console.error("Failed to load adaccounts:", err));
-  }, [user]);
-
-  // ----------------------------
-  // 2) DB-Metrics laden
-  // ----------------------------
-  function loadMetrics() {
     if (!user) return;
     fetch(`/api/metrics/${user.id}`, { credentials: "include" })
       .then((res) => res.json())
       .then((metrics: DBMetric[]) => {
-        // Speichern im State
         setDbMetrics(metrics);
       })
       .catch((err) => console.error("Failed to load metrics:", err));
-  }
-
-  // Sofort beim Mount einmal laden
-  useEffect(() => {
-    loadMetrics();
   }, [user]);
 
-  // ----------------------------
-  // 3) Insights für gewähltes Konto holen
-  // ----------------------------
-  const handleFetchInsights = async () => {
-    if (!selectedAccount) {
-      alert("Bitte ein Werbekonto auswählen");
-      return;
-    }
+  // Zeitgefilterte Metriken:
+  const filtered = filterMetricsByTimeframe(dbMetrics, timeframe);
 
-    try {
-      const res = await fetch("/api/meta/fetch-insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ adAccountId: selectedAccount }), // e.g. "123456789"
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        console.error("Error fetching insights:", json);
-        alert(json.error || "Fehler beim Abrufen der Insights");
-        return;
-      }
-
-      // Erfolg => metrics neu laden
-      loadMetrics();
-    } catch (error) {
-      console.error("Failed to fetch insights:", error);
-    }
-  };
-
-  // ----------------------------
-  // 4) Chart-Daten vorbereiten
-  // ----------------------------
-  // (Beispiel: Zeige einfach alle Einträge als daily)
-  const chartDataLeads: ChartDataPoint[] = dbMetrics.map((m) => ({
+  // Chart-Daten:
+  const chartDataLeads: ChartDataPoint[] = filtered.map((m) => ({
     period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
     value: m.leads,
   }));
-  const chartDataSpend: ChartDataPoint[] = dbMetrics.map((m) => ({
+  const chartDataSpend: ChartDataPoint[] = filtered.map((m) => ({
     period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
     value: parseFloat(m.adSpend),
   }));
-  const chartDataClicks: ChartDataPoint[] = dbMetrics.map((m) => ({
+  const chartDataClicks: ChartDataPoint[] = filtered.map((m) => ({
     period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
     value: m.clicks,
   }));
-  const chartDataImpr: ChartDataPoint[] = dbMetrics.map((m) => ({
+  const chartDataImpr: ChartDataPoint[] = filtered.map((m) => ({
     period: new Date(m.date).toLocaleDateString("de-DE", { weekday: "short" }),
     value: m.impressions,
   }));
 
-  // Summen (z.B. "Aktuelle Woche")
-  const totalLeads = dbMetrics.reduce((acc, m) => acc + m.leads, 0);
-  const totalSpend = dbMetrics.reduce(
-    (acc, m) => acc + parseFloat(m.adSpend),
-    0
-  );
-  const totalClicks = dbMetrics.reduce((acc, m) => acc + m.clicks, 0);
-  const totalImpr = dbMetrics.reduce((acc, m) => acc + m.impressions, 0);
+  // Summen
+  const totalLeads = filtered.reduce((acc, m) => acc + m.leads, 0);
+  const totalSpend = filtered.reduce((acc, m) => acc + parseFloat(m.adSpend), 0);
+  const totalClicks = filtered.reduce((acc, m) => acc + m.clicks, 0);
+  const totalImpr = filtered.reduce((acc, m) => acc + m.impressions, 0);
 
   return (
     <div className="space-y-4">
-      {/* 1) Werbekonto-Auswahl */}
-      <Card>
-        <CardContent>
-          <label htmlFor="adAccountSelect" className="font-semibold mr-2">
-            Wähle ein Ad-Konto:
-          </label>
-          <select
-            id="adAccountSelect"
-            value={selectedAccount}
-            onChange={(e) => setSelectedAccount(e.target.value)}
-            className="border p-1"
-          >
-            <option value="">-- bitte wählen --</option>
-            {adAccounts.map((acc) => (
-              <option key={acc.account_id} value={acc.account_id}>
-                {acc.name} (ID: {acc.account_id})
-              </option>
-            ))}
-          </select>
+      {/* Tabs für Timeframe */}
+      <Tabs
+        defaultValue="weekly"
+        onValueChange={(val) => setTimeframe(val as Timeframe)}
+      >
+        <TabsList>
+          <TabsTrigger value="daily">Täglich</TabsTrigger>
+          <TabsTrigger value="weekly">Wöchentlich</TabsTrigger>
+          <TabsTrigger value="monthly">Monatlich</TabsTrigger>
+          <TabsTrigger value="total">Gesamt</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-          <Button onClick={handleFetchInsights} className="ml-2">
-            Insights laden
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* 2) Charts */}
+      {/* Vier Karten nebeneinander */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Leads"
